@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FluentLoop — AI English Coach Prototype</title>
+  <style>
+    :root{
+      --bg:#f5f7fb;
+      --panel:#ffffff;
+      --text:#152033;
+      --muted:#6d778a;
+      --line:#e6eaf1;
+      --primary:#5c63f2;
+      --primary-soft:#eef0ff;
+      --green:#1f9d6a;
+      --green-soft:#eaf8f2;
+      --amber:#b7791f;
+      --amber-soft:#fff7e6;
+      --danger:#cc4b56;
+      --danger-soft:#fff0f2;
+      --shadow:0 12px 30px rgba(25,35,70,.08);
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", "Noto Sans TC", "PingFang TC", Arial, sans-serif;
+      background:var(--bg);
+      color:var(--text);
+    }
+    button,input,textarea,select{font:inherit}
+    button{cursor:pointer}
+    .app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
+    .sidebar{
+      background:#11182a;color:white;padding:24px 18px;position:sticky;top:0;height:100vh;
+      display:flex;flex-direction:column;
+    }
+    .brand{display:flex;gap:12px;align-items:center;margin:4px 8px 30px}
+    .logo{
+      width:42px;height:42px;border-radius:14px;
+      background:linear-gradient(135deg,#7479ff,#56c7b0);
+      display:grid;place-items:center;font-weight:800;font-size:20px;
+      box-shadow:0 10px 24px rgba(99,102,241,.35);
+    }
+    .brand h1{font-size:18px;margin:0}.brand small{color:#aeb7cb}
+    .nav{display:grid;gap:8px}
+    .nav button{
+      border:0;background:transparent;color:#b9c1d2;text-align:left;
+      padding:13px 14px;border-radius:12px;display:flex;gap:10px;align-items:center;
+    }
+    .nav button.active,.nav button:hover{background:#202a42;color:white}
+    .sidebar .footer{margin-top:auto;color:#8993aa;font-size:12px;padding:12px}
+    main{padding:30px;max-width:1300px;width:100%;margin:0 auto}
+    .topbar{display:flex;justify-content:space-between;gap:20px;align-items:center;margin-bottom:24px}
+    .topbar h2{margin:0 0 5px;font-size:28px}.topbar p{margin:0;color:var(--muted)}
+    .pill{background:var(--panel);border:1px solid var(--line);padding:10px 14px;border-radius:999px;box-shadow:var(--shadow)}
+    .grid{display:grid;gap:18px}
+    .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .card{
+      background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+      padding:20px;box-shadow:var(--shadow);
+    }
+    .card h3{margin:0 0 10px}.card p{color:var(--muted);line-height:1.6}
+    .hero{
+      background:linear-gradient(135deg,#1a2240 0%,#3b3f88 58%,#5f67f3 100%);
+      color:white;padding:28px;border-radius:24px;box-shadow:var(--shadow);
+      display:grid;grid-template-columns:1.4fr .8fr;gap:22px;
+    }
+    .hero p{color:#d8dcff}.hero .goal{font-size:38px;font-weight:800;margin:10px 0}
+    .hero .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+    .btn{
+      border:0;border-radius:12px;padding:12px 16px;font-weight:700;
+      background:var(--primary);color:white;
+    }
+    .btn.secondary{background:white;color:var(--text);border:1px solid var(--line)}
+    .btn.ghost{background:rgba(255,255,255,.12);color:white;border:1px solid rgba(255,255,255,.22)}
+    .btn.small{padding:8px 11px;font-size:13px}
+    .metric{background:rgba(255,255,255,.1);padding:18px;border-radius:16px}
+    .metric strong{display:block;font-size:27px}.metric span{color:#d8dcff;font-size:13px}
+    .task-list{display:grid;gap:12px}
+    .task{
+      border:1px solid var(--line);border-radius:14px;padding:14px;
+      display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
+    }
+    .task .icon{width:42px;height:42px;border-radius:13px;background:var(--primary-soft);display:grid;place-items:center}
+    .task h4{margin:0 0 4px}.task small{color:var(--muted)}
+    .progress{height:9px;background:#edf0f5;border-radius:999px;overflow:hidden}
+    .progress span{display:block;height:100%;background:linear-gradient(90deg,#5c63f2,#55c7ae);border-radius:999px}
+    .tag{display:inline-flex;align-items:center;padding:6px 9px;border-radius:999px;background:var(--primary-soft);color:#4d54d5;font-size:12px;font-weight:700;margin:3px}
+    .tag.green{background:var(--green-soft);color:var(--green)}
+    .tag.amber{background:var(--amber-soft);color:var(--amber)}
+    .section{display:none}.section.active{display:block}
+    .reading-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:18px}
+    .article{font-size:18px;line-height:1.9;color:#273248}
+    .lookup{
+      background:#fff5c7;border-bottom:2px dotted #b28b00;cursor:pointer;padding:1px 2px;border-radius:4px;
+    }
+    .lookup:hover{background:#ffe88a}
+    .word-card{position:sticky;top:24px}
+    .word-card .empty{padding:30px 10px;text-align:center;color:var(--muted)}
+    .word-card .meaning{font-size:18px;color:var(--text);font-weight:700}
+    .word-card .example{border-left:3px solid var(--primary);padding-left:12px;color:#465067}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+    .tabs{display:flex;gap:8px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow:auto}
+    .tabs button{border:0;background:transparent;padding:12px 10px;color:var(--muted);font-weight:700;border-bottom:3px solid transparent}
+    .tabs button.active{color:var(--primary);border-bottom-color:var(--primary)}
+    .vocab-item{border:1px solid var(--line);padding:14px;border-radius:14px;margin-bottom:10px}
+    .vocab-head{display:flex;justify-content:space-between;gap:12px}
+    .status{font-size:12px;font-weight:700;padding:5px 8px;border-radius:999px}
+    .status.active{background:var(--green-soft);color:var(--green)}
+    .status.passive{background:var(--amber-soft);color:var(--amber)}
+    .chat{display:grid;gap:12px;max-height:520px;overflow:auto;padding-right:4px}
+    .bubble{max-width:82%;padding:13px 15px;border-radius:16px;line-height:1.55}
+    .bubble.ai{background:#eef0ff;border-bottom-left-radius:5px}
+    .bubble.user{background:#152033;color:white;margin-left:auto;border-bottom-right-radius:5px}
+    .feedback{background:var(--green-soft);border:1px solid #cfeede;padding:14px;border-radius:14px}
+    .feedback h4{margin:0 0 8px;color:#167c54}
+    textarea{
+      width:100%;min-height:130px;border:1px solid var(--line);border-radius:14px;padding:14px;
+      resize:vertical;outline:none;
+    }
+    textarea:focus,input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft);outline:none}
+    .input-row{display:flex;gap:8px;margin-top:10px}.input-row input{flex:1;border:1px solid var(--line);border-radius:12px;padding:12px}
+    table{width:100%;border-collapse:collapse}
+    th,td{text-align:left;padding:12px;border-bottom:1px solid var(--line);font-size:14px}
+    th{color:var(--muted);font-weight:700}
+    .bar-row{display:grid;grid-template-columns:120px 1fr 45px;gap:12px;align-items:center;margin:11px 0}
+    .toast{
+      position:fixed;right:24px;bottom:24px;background:#152033;color:white;padding:12px 16px;
+      border-radius:12px;box-shadow:var(--shadow);display:none;z-index:50;
+    }
+    .modal-backdrop{
+      position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;place-items:center;padding:20px;z-index:40
+    }
+    .modal{background:white;border-radius:20px;padding:24px;max-width:620px;width:100%;max-height:85vh;overflow:auto}
+    .modal h3{margin-top:0}
+    .choice-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .choice{border:1px solid var(--line);background:white;padding:16px;border-radius:14px;text-align:left}
+    .choice:hover{border-color:var(--primary);background:var(--primary-soft)}
+    .muted{color:var(--muted)}
+    .hidden{display:none!important}
+    .mobile-nav{display:none}
+    @media (max-width:900px){
+      .app{grid-template-columns:1fr}
+      .sidebar{display:none}
+      main{padding:18px 16px 90px}
+      .grid-2,.grid-3,.hero,.reading-layout{grid-template-columns:1fr}
+      .mobile-nav{
+        display:grid;grid-template-columns:repeat(4,1fr);position:fixed;bottom:0;left:0;right:0;
+        background:white;border-top:1px solid var(--line);z-index:20;
+      }
+      .mobile-nav button{border:0;background:white;padding:10px 4px;font-size:12px;color:var(--muted)}
+      .mobile-nav button.active{color:var(--primary);font-weight:800}
+      .choice-grid{grid-template-columns:1fr}
+      .topbar{align-items:flex-start}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">F</div>
+      <div><h1>FluentLoop</h1><small>AI English Coach</small></div>
+    </div>
+    <div class="nav">
+      <button class="active" data-section="today">🏠 Today</button>
+      <button data-section="learn">📖 Learn</button>
+      <button data-section="coach">💬 Coach</button>
+      <button data-section="library">🗂 Library</button>
+      <button data-section="progress">📈 Progress</button>
+    </div>
+    <div class="footer">
+      Prototype v0.1<br>
+      B1 → B2 · Psychology · Daily Life · Business
+    </div>
+  </aside>
+
+  <main>
+    <section id="today" class="section active">
+      <div class="topbar">
+        <div><h2>Today’s Focus</h2><p>一次只做一個有趣主題，把口說、文法、單字和寫作串在一起。</p></div>
+        <div class="pill">🔥 <span id="streak">4</span> learning days</div>
+      </div>
+
+      <div class="hero">
+        <div>
+          <span class="tag green">Psychology</span>
+          <h3 style="font-size:28px;margin:14px 0 8px">Why do people procrastinate?</h3>
+          <p>Today: explain reasons, use connecting words, and actively use 4 useful expressions.</p>
+          <div class="actions">
+            <button class="btn" onclick="openModePicker()">Start session</button>
+            <button class="btn ghost" onclick="switchSection('coach')">Free conversation</button>
+          </div>
+        </div>
+        <div class="grid grid-2">
+          <div class="metric"><strong id="doneCount">0/5</strong><span>Tasks completed</span></div>
+          <div class="metric"><strong id="dueCount">4</strong><span>Words due</span></div>
+          <div class="metric"><strong>B1+</strong><span>Current adaptive level</span></div>
+          <div class="metric"><strong id="minutes">0m</strong><span>Focused today</span></div>
+        </div>
+      </div>
+
+      <div class="grid grid-2" style="margin-top:18px">
+        <div class="card">
+          <h3>Today’s learning loop</h3>
+          <p>完成最短版本也算成功；有興趣時再向下深入。</p>
+          <div class="task-list">
+            <div class="task"><div class="icon">🧠</div><div><h4>Vocabulary recall</h4><small>4 expressions based on memory strength</small></div><button class="btn small secondary" onclick="switchSection('library')">Open</button></div>
+            <div class="task"><div class="icon">📘</div><div><h4>Interest reading</h4><small>Tap unknown words without leaving the article</small></div><button class="btn small secondary" onclick="switchSection('learn')">Read</button></div>
+            <div class="task"><div class="icon">🗣</div><div><h4>Conversation</h4><small>Corrections after each paragraph</small></div><button class="btn small secondary" onclick="switchSection('coach')">Talk</button></div>
+            <div class="task"><div class="icon">✍️</div><div><h4>Short writing</h4><small>80–120 words with progress comparison</small></div><button class="btn small secondary" onclick="openWriting()">Write</button></div>
+            <div class="task"><div class="icon">✅</div><div><h4>Review summary</h4><small>Schedule the next review automatically</small></div><button class="btn small secondary" onclick="completeTask('summary')">Finish</button></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Adaptive plan</h3>
+          <p>The app adjusts difficulty using behavior, not only CEFR labels.</p>
+          <div class="bar-row"><span>Vocabulary</span><div class="progress"><span style="width:68%"></span></div><strong>68%</strong></div>
+          <div class="bar-row"><span>Grammar links</span><div class="progress"><span style="width:54%"></span></div><strong>54%</strong></div>
+          <div class="bar-row"><span>Speaking flow</span><div class="progress"><span style="width:46%"></span></div><strong>46%</strong></div>
+          <div class="bar-row"><span>Listening</span><div class="progress"><span style="width:41%"></span></div><strong>41%</strong></div>
+          <div class="bar-row"><span>Writing</span><div class="progress"><span style="width:58%"></span></div><strong>58%</strong></div>
+          <div style="margin-top:16px;padding:14px;background:var(--amber-soft);border-radius:14px">
+            <strong>Today’s recommendation</strong>
+            <p style="margin-bottom:0">Keep the topic familiar, but recycle <b>overwhelmed</b>, <b>put off</b>, and <b>get started</b> in new contexts.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="learn" class="section">
+      <div class="topbar">
+        <div><h2>Interest Reading</h2><p>點選標示字詞查看解釋；所有查詢會先自動記錄，文章結束後再分類。</p></div>
+        <div class="pill">Level: B1+</div>
+      </div>
+      <div class="reading-layout">
+        <article class="card">
+          <span class="tag">Psychology</span><span class="tag amber">Approx. 2 min</span>
+          <h3 style="font-size:25px;margin-top:14px">Why We Delay Important Tasks</h3>
+          <div class="article">
+            <p>People do not always procrastinate because they are lazy. Sometimes they
+              <span class="lookup" data-word="put off">put off</span> a task because it feels
+              <span class="lookup" data-word="overwhelming">overwhelming</span>.
+              A person may worry about making mistakes, receiving
+              <span class="lookup" data-word="criticism">criticism</span>, or discovering that the task is more difficult than expected.</p>
+            <p>Procrastination can provide <span class="lookup" data-word="temporary relief">temporary relief</span>.
+              When people avoid a stressful task, they feel better for a short time. However, the task remains unfinished, and the stress often becomes stronger later.</p>
+            <p>One useful solution is to <span class="lookup" data-word="break into smaller steps">break the task into smaller steps</span>.
+              Instead of thinking, “I need to finish the entire report,” a person can begin with,
+              “I will write the first paragraph.” A small action makes it easier to
+              <span class="lookup" data-word="get started">get started</span>.</p>
+          </div>
+          <div class="toolbar">
+            <button class="btn secondary" onclick="simplifyArticle()">Simplify one level</button>
+            <button class="btn secondary" onclick="showQuestions()">Comprehension</button>
+            <button class="btn" onclick="finishReading()">Finish reading</button>
+          </div>
+          <div id="questions" class="hidden" style="margin-top:15px">
+            <h3>Use your own words</h3>
+            <p><b>1.</b> Why can procrastination make someone feel better temporarily?</p>
+            <textarea id="readingAnswer" placeholder="Answer in 2–4 English sentences..."></textarea>
+            <button class="btn" style="margin-top:8px" onclick="reviewReadingAnswer()">Review answer</button>
+            <div id="readingFeedback"></div>
+          </div>
+        </article>
+
+        <aside class="card word-card">
+          <h3>Word in context</h3>
+          <div id="wordCard" class="empty">點文章中有底線的字詞。</div>
+          <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+          <h4>Looked up in this article</h4>
+          <div id="lookupList" class="muted">No lookups yet.</div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="coach" class="section">
+      <div class="topbar">
+        <div><h2>Conversation Coach</h2><p>先讓你完整回答一段，再提供少量且重要的糾正。</p></div>
+        <select id="coachMode" onchange="resetChat()" style="padding:10px;border:1px solid var(--line);border-radius:12px">
+          <option>Topic conversation</option>
+          <option>Daily-life roleplay</option>
+          <option>Business conversation</option>
+          <option>Free conversation</option>
+        </select>
+      </div>
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="chat" id="chat">
+            <div class="bubble ai">Some people think procrastination is mainly a time-management problem. Others think it is an emotional problem. What do you think?</div>
+          </div>
+          <div class="input-row">
+            <input id="chatInput" placeholder="Write a full paragraph before sending..." onkeydown="if(event.key==='Enter'){sendChat()}">
+            <button class="btn" onclick="sendChat()">Send</button>
+          </div>
+          <div class="toolbar">
+            <button class="btn small secondary" onclick="giveHint()">Give me a sentence starter</button>
+            <button class="btn small secondary" onclick="saveForLater()">Save a side question</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Coach settings</h3>
+          <div class="vocab-item">
+            <b>Correction timing</b>
+            <p style="margin:6px 0 0">After each paragraph — never interrupt mid-thought.</p>
+          </div>
+          <div class="vocab-item">
+            <b>Target expressions</b>
+            <div style="margin-top:8px"><span class="tag">put off</span><span class="tag">overwhelmed</span><span class="tag">get started</span></div>
+          </div>
+          <div class="vocab-item">
+            <b>Grammar focus</b>
+            <p style="margin:6px 0 0">because / even though / when / so</p>
+          </div>
+          <div class="vocab-item">
+            <b>Feedback limit</b>
+            <p style="margin:6px 0 0">Maximum 2–3 corrections per turn.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="library" class="section">
+      <div class="topbar">
+        <div><h2>Learning Library</h2><p>保存的不只是單字，而是來源、搭配、你的句子、錯誤與複習狀態。</p></div>
+        <button class="btn" onclick="addCustomWord()">+ Add expression</button>
+      </div>
+      <div class="tabs">
+        <button class="active" onclick="showLibraryTab('due',this)">Due today</button>
+        <button onclick="showLibraryTab('active',this)">Active learning</button>
+        <button onclick="showLibraryTab('passive',this)">Passive exposure</button>
+        <button onclick="showLibraryTab('writing',this)">Writing history</button>
+      </div>
+      <div id="libraryContent"></div>
+    </section>
+
+    <section id="progress" class="section">
+      <div class="topbar">
+        <div><h2>Progress That Matters</h2><p>不是只看答題數，而是看你能否在無提示的新情境中使用英文。</p></div>
+        <div class="pill">Last 4 weeks</div>
+      </div>
+      <div class="grid grid-3">
+        <div class="card"><p>Active vocabulary</p><h3 style="font-size:34px">18</h3><span class="tag green">+6 this week</span></div>
+        <div class="card"><p>Average speaking turn</p><h3 style="font-size:34px">42 sec</h3><span class="tag green">+11 sec</span></div>
+        <div class="card"><p>Grammar recurrence</p><h3 style="font-size:34px">-23%</h3><span class="tag green">Improving</span></div>
+      </div>
+      <div class="grid grid-2" style="margin-top:18px">
+        <div class="card">
+          <h3>Most frequent language issues</h3>
+          <table>
+            <tr><th>Pattern</th><th>4 weeks ago</th><th>Now</th></tr>
+            <tr><td>need/want + to + verb</td><td>8</td><td>3</td></tr>
+            <tr><td>Articles (a/an/the)</td><td>10</td><td>7</td></tr>
+            <tr><td>Sentence linking</td><td>12</td><td>6</td></tr>
+            <tr><td>Natural collocations</td><td>9</td><td>7</td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <h3>Engagement signals</h3>
+          <div class="bar-row"><span>Psychology</span><div class="progress"><span style="width:92%"></span></div><strong>92</strong></div>
+          <div class="bar-row"><span>Daily life</span><div class="progress"><span style="width:81%"></span></div><strong>81</strong></div>
+          <div class="bar-row"><span>Business</span><div class="progress"><span style="width:69%"></span></div><strong>69</strong></div>
+          <p>Next articles should remain familiar in topic while slightly increasing sentence complexity.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:18px">
+        <h3>Writing comparison</h3>
+        <table>
+          <tr><th>Metric</th><th>4 weeks ago</th><th>This week</th></tr>
+          <tr><td>Average sentence length</td><td>8.4 words</td><td>11.2 words</td></tr>
+          <tr><td>Correct linking expressions</td><td>2 types</td><td>5 types</td></tr>
+          <tr><td>Article errors / 100 words</td><td>7</td><td>4</td></tr>
+          <tr><td>New expressions used actively</td><td>2</td><td>6</td></tr>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="mobile-nav">
+  <button class="active" data-section="today">Today</button>
+  <button data-section="learn">Learn</button>
+  <button data-section="coach">Coach</button>
+  <button data-section="library">Library</button>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<div id="modeModal" class="modal-backdrop" onclick="if(event.target===this)closeModal('modeModal')">
+  <div class="modal">
+    <h3>Choose today’s energy level</h3>
+    <p class="muted">You can continue longer if the topic becomes interesting.</p>
+    <div class="choice-grid">
+      <button class="choice" onclick="chooseMode('Quick',5)"><b>Quick</b><br><span class="muted">5–8 min<br>3 words + 1 speaking task</span></button>
+      <button class="choice" onclick="chooseMode('Standard',20)"><b>Standard</b><br><span class="muted">15–25 min<br>Full learning loop</span></button>
+      <button class="choice" onclick="chooseMode('Deep',45)"><b>Deep</b><br><span class="muted">No fixed ending<br>Explore while interested</span></button>
+    </div>
+  </div>
+</div>
+
+<div id="writingModal" class="modal-backdrop" onclick="if(event.target===this)closeModal('writingModal')">
+  <div class="modal">
+    <h3>Short writing</h3>
+    <p>Write 80–120 words about a task you have been avoiding. Explain why you avoid it and one small step you could take today.</p>
+    <div><span class="tag">put off</span><span class="tag">because / even though</span><span class="tag">one new expression</span></div>
+    <textarea id="writingText" placeholder="Write here..."></textarea>
+    <div class="toolbar">
+      <button class="btn" onclick="analyzeWriting()">Get feedback</button>
+      <button class="btn secondary" onclick="closeModal('writingModal')">Close</button>
+    </div>
+    <div id="writingFeedback"></div>
+  </div>
+</div>
+
+<script>
+const vocabData = {
+  "put off":{
+    meaning:"延後做某事；拖延",
+    simple:"To delay doing something.",
+    example:"I keep putting off an important phone call.",
+    collocations:["put off a task","keep putting something off","put it off until tomorrow"],
+    status:"active", strength:42, next:"Today"
+  },
+  "overwhelming":{
+    meaning:"讓人覺得太多、太難處理的",
+    simple:"So difficult or stressful that it is hard to manage.",
+    example:"The project felt overwhelming at first.",
+    collocations:["an overwhelming task","an overwhelming amount of work","feel overwhelmed"],
+    status:"active", strength:31, next:"Today"
+  },
+  "criticism":{
+    meaning:"批評、負面評價",
+    simple:"Comments that point out problems or faults.",
+    example:"Some people avoid speaking because they fear criticism.",
+    collocations:["receive criticism","fear criticism","constructive criticism"],
+    status:"passive", strength:58, next:"In article"
+  },
+  "temporary relief":{
+    meaning:"暫時的放鬆或解脫",
+    simple:"A short period of feeling less stress or pain.",
+    example:"Avoiding the task gives temporary relief.",
+    collocations:["provide temporary relief","feel temporary relief"],
+    status:"passive", strength:49, next:"3 days"
+  },
+  "break into smaller steps":{
+    meaning:"把事情拆成較小步驟",
+    simple:"To divide a large task into easier actions.",
+    example:"Break the report into smaller steps.",
+    collocations:["break a task into steps","smaller manageable steps"],
+    status:"active", strength:38, next:"Tomorrow"
+  },
+  "get started":{
+    meaning:"開始行動",
+    simple:"To begin doing something.",
+    example:"The hardest part is getting started.",
+    collocations:["get started on a task","help someone get started"],
+    status:"active", strength:63, next:"3 days"
+  }
+};
+
+let state = JSON.parse(localStorage.getItem("fluentLoopState") || "null") || {
+  lookups:[], completed:[], minutes:0, words:{}, writings:[]
+};
+
+function saveState(){ localStorage.setItem("fluentLoopState",JSON.stringify(state)); updateDashboard(); }
+function switchSection(id){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('[data-section]').forEach(b=>b.classList.toggle('active',b.dataset.section===id));
+  if(id==='library') renderLibrary('due');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+document.querySelectorAll('[data-section]').forEach(b=>b.addEventListener('click',()=>switchSection(b.dataset.section)));
+
+function toast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';
+  setTimeout(()=>t.style.display='none',2200);
+}
+function openModePicker(){document.getElementById('modeModal').style.display='grid'}
+function closeModal(id){document.getElementById(id).style.display='none'}
+function chooseMode(name,mins){
+  state.minutes=Math.max(state.minutes,mins);
+  saveState();closeModal('modeModal');switchSection(name==='Quick'?'library':'learn');
+  toast(name+" mode started");
+}
+function completeTask(task){
+  if(!state.completed.includes(task)) state.completed.push(task);
+  saveState();toast("Task completed");
+}
+function updateDashboard(){
+  document.getElementById('doneCount').textContent=Math.min(state.completed.length,5)+"/5";
+  document.getElementById('minutes').textContent=state.minutes+"m";
+  document.getElementById('dueCount').textContent=Object.values(vocabData).filter(v=>v.status==='active'&&v.strength<65).length;
+}
+updateDashboard();
+
+document.querySelectorAll('.lookup').forEach(el=>{
+  el.addEventListener('click',()=>showWord(el.dataset.word));
+});
+function showWord(word){
+  const d=vocabData[word];
+  if(!state.lookups.includes(word)) state.lookups.push(word);
+  saveState();
+  document.getElementById('wordCard').className='';
+  document.getElementById('wordCard').innerHTML=`
+    <h3 style="margin-bottom:3px">${word}</h3>
+    <div class="meaning">${d.meaning}</div>
+    <p>${d.simple}</p>
+    <p class="example">${d.example}</p>
+    <div>${d.collocations.map(x=>`<span class="tag">${x}</span>`).join('')}</div>
+    <div class="toolbar">
+      <button class="btn small" onclick="setWordStatus('${word}','active')">Add to active learning</button>
+      <button class="btn small secondary" onclick="setWordStatus('${word}','passive')">Passive only</button>
+    </div>`;
+  renderLookupList();
+}
+function renderLookupList(){
+  const el=document.getElementById('lookupList');
+  if(!state.lookups.length){el.textContent="No lookups yet.";return}
+  el.innerHTML=state.lookups.map(w=>`<span class="tag amber">${w}</span>`).join('');
+}
+function setWordStatus(word,status){
+  vocabData[word].status=status; state.words[word]={status};
+  saveState();toast(status==='active'?"Added to active learning":"Kept for passive exposure");
+}
+function simplifyArticle(){
+  document.querySelector('.article').innerHTML=`
+  <p>People sometimes delay a task because it feels too difficult or stressful. They may be afraid of making mistakes or receiving negative comments.</p>
+  <p>Avoiding the task can make them feel better for a short time. However, the stress often becomes worse later.</p>
+  <p>A useful solution is to divide the task into small steps. Starting with one small action can make the task easier.</p>`;
+  toast("Article simplified one level");
+}
+function showQuestions(){document.getElementById('questions').classList.remove('hidden')}
+function reviewReadingAnswer(){
+  const text=document.getElementById('readingAnswer').value.trim();
+  const box=document.getElementById('readingFeedback');
+  if(!text){toast("Write an answer first");return}
+  box.innerHTML=`<div class="feedback" style="margin-top:12px">
+  <h4>Good comprehension</h4>
+  <p>You explained the short-term emotional benefit. To make the answer more complete, add what happens later.</p>
+  <b>Possible upgrade:</b>
+  <p>Procrastination can make people feel better temporarily because they avoid an uncomfortable task. However, the stress usually returns and may become stronger later.</p></div>`;
+  completeTask('reading');
+}
+function finishReading(){
+  completeTask('reading');
+  const recommended=state.lookups.filter(w=>vocabData[w]?.status==='active');
+  toast(`Reading saved. ${recommended.length||3} words recommended for review.`);
+}
+
+let chatStep=0;
+const followUps=[
+  "That makes sense. What usually makes it easier for you to get started?",
+  "Can you describe a recent situation when you felt overwhelmed?",
+  "What advice would you give to someone who keeps putting off an important task?"
+];
+function sendChat(){
+  const input=document.getElementById('chatInput'), text=input.value.trim();
+  if(!text){toast("Write a complete thought first");return}
+  appendBubble(text,'user');input.value='';
+  setTimeout(()=>{
+    const correction=analyzeChatText(text);
+    appendFeedback(correction);
+    appendBubble(followUps[Math.min(chatStep,followUps.length-1)],'ai');
+    chatStep++;
+    completeTask('conversation');
+  },350);
+}
+function appendBubble(text,type){
+  const chat=document.getElementById('chat');
+  const div=document.createElement('div');div.className='bubble '+type;div.textContent=text;chat.appendChild(div);chat.scrollTop=chat.scrollHeight;
+}
+function appendFeedback(html){
+  const chat=document.getElementById('chat');
+  const div=document.createElement('div');div.className='feedback';div.innerHTML=html;chat.appendChild(div);chat.scrollTop=chat.scrollHeight;
+}
+function analyzeChatText(text){
+  let corrections=[];
+  let natural=text;
+  if(/\bneed (?!to\b)/i.test(text)){corrections.push("Use <b>need to + verb</b>.");natural=natural.replace(/\bneed ([a-z]+)/i,"need to $1")}
+  if(/\bwant (?!to\b)/i.test(text)){corrections.push("Use <b>want to + verb</b>.");natural=natural.replace(/\bwant ([a-z]+)/i,"want to $1")}
+  if(/\bit is emotional problem\b/i.test(text)){corrections.push("Use an article: <b>an emotional problem</b>.");natural=natural.replace(/it is emotional problem/i,"it is an emotional problem")}
+  if(corrections.length===0) corrections.push("Your meaning is clear. Try adding <b>even though</b> or a specific example.");
+  return `<h4>Paragraph feedback</h4>
+    <p><b>Natural version:</b> ${escapeHtml(natural)}</p>
+    <p>${corrections.slice(0,3).join("<br>")}</p>
+    <button class="btn small secondary" onclick="toast('Try saying the full idea again in a new sentence.')">Answer again</button>`;
+}
+function giveHint(){
+  document.getElementById('chatInput').value="I think procrastination is partly an emotional problem because...";
+  document.getElementById('chatInput').focus();
+}
+function saveForLater(){
+  const q=prompt("What side question should be saved for later?");
+  if(q) toast("Saved to Later Exploration");
+}
+function resetChat(){
+  chatStep=0;
+  document.getElementById('chat').innerHTML=`<div class="bubble ai">Tell me about a situation related to ${document.getElementById('coachMode').value.toLowerCase()}. I will wait until you finish your paragraph before correcting it.</div>`;
+}
+
+function showLibraryTab(type,btn){
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
+  renderLibrary(type);
+}
+function renderLibrary(type='due'){
+  const content=document.getElementById('libraryContent');
+  if(type==='writing'){
+    if(!state.writings.length){content.innerHTML='<div class="card"><p>No writing saved yet. Complete today’s short writing to create your first comparison.</p></div>';return}
+    content.innerHTML=state.writings.map((w,i)=>`<div class="card"><h3>Writing ${i+1}</h3><p>${escapeHtml(w.text)}</p><span class="tag green">${w.date}</span></div>`).join('');
+    return;
+  }
+  let entries=Object.entries(vocabData);
+  if(type==='active') entries=entries.filter(([k,v])=>v.status==='active');
+  if(type==='passive') entries=entries.filter(([k,v])=>v.status==='passive');
+  if(type==='due') entries=entries.filter(([k,v])=>v.status==='active'&&v.strength<65);
+  content.innerHTML=entries.map(([word,d])=>`
+    <div class="vocab-item">
+      <div class="vocab-head"><div><h3 style="margin:0">${word}</h3><span class="muted">${d.meaning}</span></div>
+      <span class="status ${d.status}">${d.status==='active'?'Active learning':'Passive exposure'}</span></div>
+      <p>${d.example}</p>
+      <div>${d.collocations.map(x=>`<span class="tag">${x}</span>`).join('')}</div>
+      <div class="bar-row" style="grid-template-columns:90px 1fr 55px"><span>Strength</span><div class="progress"><span style="width:${d.strength}%"></span></div><strong>${d.strength}%</strong></div>
+      <div class="toolbar">
+        <button class="btn small" onclick="reviewWord('${word}')">Review now</button>
+        <button class="btn small secondary" onclick="makeSentence('${word}')">Make a sentence</button>
+      </div>
+    </div>`).join('') || '<div class="card"><p>Nothing in this category yet.</p></div>';
+}
+function reviewWord(word){
+  const d=vocabData[word];
+  const answer=prompt(`Without copying the example, write one true sentence using "${word}".`);
+  if(answer){
+    const self=confirm("Could you use it without a hint?");
+    d.strength=Math.min(100,d.strength+(self?12:5));
+    saveState();renderLibrary('due');toast(self?"Review interval extended":"Scheduled again soon");
+  }
+}
+function makeSentence(word){reviewWord(word)}
+function addCustomWord(){
+  const word=prompt("Expression or phrase:");
+  if(!word)return;
+  vocabData[word]={meaning:"Your saved expression",simple:"Add a definition later.",example:"Create your own example.",collocations:[],status:"active",strength:15,next:"Today"};
+  renderLibrary('active');toast("Expression added");
+}
+
+function openWriting(){document.getElementById('writingModal').style.display='grid'}
+function analyzeWriting(){
+  const text=document.getElementById('writingText').value.trim();
+  if(!text){toast("Write something first");return}
+  const words=text.split(/\s+/).filter(Boolean).length;
+  const usedPutOff=/put off|putting off/i.test(text);
+  const usedLink=/because|even though/i.test(text);
+  let corrected=text.replace(/\bneed ([a-z]+)/gi,"need to $1").replace(/\bwant ([a-z]+)/gi,"want to $1");
+  document.getElementById('writingFeedback').innerHTML=`
+  <div class="feedback">
+    <h4>Writing feedback</h4>
+    <p><b>Length:</b> ${words} words ${words<80?"— continue toward 80 words.":"— target reached."}</p>
+    <p><b>Strengths:</b> ${usedPutOff?"You used “put off” correctly.":"Your main idea is clear."} ${usedLink?"You connected reasons clearly.":""}</p>
+    <p><b>Minimum correction:</b><br>${escapeHtml(corrected)}</p>
+    <p><b>B2 upgrade goal:</b> Add one contrast sentence using <i>even though</i> and one concrete example.</p>
+  </div>`;
+  state.writings.push({text,date:new Date().toLocaleDateString()});
+  completeTask('writing');saveState();
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+renderLookupList();
+renderLibrary('due');
+</script>
+</body>
+</html>
