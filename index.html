@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FluentLoop — AI English Coach Prototype</title>
+  <title>FluentLoop Local — Working Build v1.0</title>
   <style>
     :root{
       --bg:#f5f7fb;
@@ -109,9 +109,27 @@
     .tabs button.active{color:var(--primary);border-bottom-color:var(--primary)}
     .vocab-item{border:1px solid var(--line);padding:14px;border-radius:14px;margin-bottom:10px}
     .vocab-head{display:flex;justify-content:space-between;gap:12px}
+    .practice-panel{margin-top:14px;padding:16px;border-radius:14px;background:#f8f9ff;border:1px solid #dfe3ff}
+    .practice-panel h4{margin:0 0 8px}
+    .practice-panel textarea{min-height:92px;background:white}
+    .practice-feedback{margin-top:12px;padding:13px;border-radius:12px;background:var(--green-soft);border:1px solid #cfeede;line-height:1.55}
+    .practice-hint{margin-top:10px;padding:11px 12px;border-radius:11px;background:var(--amber-soft);border:1px solid #f2dfb2;color:#725112}
     .status{font-size:12px;font-weight:700;padding:5px 8px;border-radius:999px}
     .status.active{background:var(--green-soft);color:var(--green)}
     .status.passive{background:var(--amber-soft);color:var(--amber)}
+    .coach-topic{padding:15px;border-radius:14px;background:linear-gradient(135deg,#f1f2ff,#eefaf7);border:1px solid var(--line);margin-bottom:12px}
+    .coach-topic h3{margin:0 0 6px}
+    .coach-composer{margin-top:12px}
+    .coach-composer textarea{min-height:105px}
+    .coach-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px}
+    .mic-active{background:var(--danger)!important}
+    .target-chip{display:inline-flex;gap:6px;align-items:center;padding:7px 10px;border-radius:999px;background:var(--primary-soft);color:#4d54d5;font-size:12px;font-weight:800;margin:3px}
+    .target-chip.used{background:var(--green-soft);color:var(--green)}
+    .inline-coach-panel{margin-top:10px;padding:13px;border:1px solid var(--line);border-radius:13px;background:#fafbfe}
+    .retry-badge{font-size:11px;font-weight:800;padding:4px 7px;border-radius:999px;background:var(--amber-soft);color:var(--amber);margin-left:6px}
+    .session-summary{margin-top:18px;border:1px solid #cfeede;background:var(--green-soft)}
+    .conversation-stat{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid rgba(31,157,106,.16)}
+    .conversation-stat:last-child{border-bottom:0}
     .chat{display:grid;gap:12px;max-height:520px;overflow:auto;padding-right:4px}
     .bubble{max-width:82%;padding:13px 15px;border-radius:16px;line-height:1.55}
     .bubble.ai{background:#eef0ff;border-bottom-left-radius:5px}
@@ -142,6 +160,19 @@
     .choice:hover{border-color:var(--primary);background:var(--primary-soft)}
     .muted{color:var(--muted)}
     .hidden{display:none!important}
+    .build-banner{display:flex;align-items:center;gap:10px;padding:12px 15px;border-radius:14px;background:#eefaf7;border:1px solid #cfeede;margin-bottom:18px}
+    .build-dot{width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px rgba(31,157,106,.12)}
+    .feature-status{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border-radius:999px;font-size:12px;font-weight:800}
+    .feature-status.working{background:var(--green-soft);color:var(--green)}
+    .feature-status.limited{background:var(--amber-soft);color:var(--amber)}
+    .feature-status.unavailable{background:var(--danger-soft);color:var(--danger)}
+    .settings-row{display:grid;grid-template-columns:minmax(160px,.55fr) 1fr auto;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+    .settings-row:last-child{border-bottom:0}
+    .inline-form{padding:16px;border:1px solid var(--line);background:#fafbfe;border-radius:14px;margin-bottom:14px}
+    .inline-form input{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px;margin-top:8px}
+    .test-result{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+    .test-result:last-child{border-bottom:0}
+    .empty-state{text-align:center;padding:28px;color:var(--muted)}
     .mobile-nav{display:none}
     @media (max-width:900px){
       .app{grid-template-columns:1fr}
@@ -149,7 +180,7 @@
       main{padding:18px 16px 90px}
       .grid-2,.grid-3,.hero,.reading-layout{grid-template-columns:1fr}
       .mobile-nav{
-        display:grid;grid-template-columns:repeat(4,1fr);position:fixed;bottom:0;left:0;right:0;
+        display:grid;grid-template-columns:repeat(5,1fr);position:fixed;bottom:0;left:0;right:0;
         background:white;border-top:1px solid var(--line);z-index:20;
       }
       .mobile-nav button{border:0;background:white;padding:10px 4px;font-size:12px;color:var(--muted)}
@@ -164,7 +195,7 @@
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">F</div>
-      <div><h1>FluentLoop</h1><small>AI English Coach</small></div>
+      <div><h1>FluentLoop Local</h1><small>Working Build</small></div>
     </div>
     <div class="nav">
       <button class="active" data-section="today">🏠 Today</button>
@@ -172,18 +203,20 @@
       <button data-section="coach">💬 Coach</button>
       <button data-section="library">🗂 Library</button>
       <button data-section="progress">📈 Progress</button>
+      <button data-section="status">🛠 Status</button>
     </div>
     <div class="footer">
-      Prototype v0.1<br>
+      Working Build v1.0<br>
       B1 → B2 · Psychology · Daily Life · Business
     </div>
   </aside>
 
   <main>
     <section id="today" class="section active">
+      <div class="build-banner"><span class="build-dot"></span><div><b>Local working version</b><div class="muted">All visible learning actions save real local data. Feedback is rule-based until a secure AI backend is connected.</div></div></div>
       <div class="topbar">
         <div><h2>Today’s Focus</h2><p>一次只做一個有趣主題，把口說、文法、單字和寫作串在一起。</p></div>
-        <div class="pill">🔥 <span id="streak">4</span> learning days</div>
+        <div class="pill">🔥 <span id="streak">0</span> learning days</div>
       </div>
 
       <div class="hero">
@@ -218,17 +251,9 @@
         </div>
 
         <div class="card">
-          <h3>Adaptive plan</h3>
-          <p>The app adjusts difficulty using behavior, not only CEFR labels.</p>
-          <div class="bar-row"><span>Vocabulary</span><div class="progress"><span style="width:68%"></span></div><strong>68%</strong></div>
-          <div class="bar-row"><span>Grammar links</span><div class="progress"><span style="width:54%"></span></div><strong>54%</strong></div>
-          <div class="bar-row"><span>Speaking flow</span><div class="progress"><span style="width:46%"></span></div><strong>46%</strong></div>
-          <div class="bar-row"><span>Listening</span><div class="progress"><span style="width:41%"></span></div><strong>41%</strong></div>
-          <div class="bar-row"><span>Writing</span><div class="progress"><span style="width:58%"></span></div><strong>58%</strong></div>
-          <div style="margin-top:16px;padding:14px;background:var(--amber-soft);border-radius:14px">
-            <strong>Today’s recommendation</strong>
-            <p style="margin-bottom:0">Keep the topic familiar, but recycle <b>overwhelmed</b>, <b>put off</b>, and <b>get started</b> in new contexts.</p>
-          </div>
+          <h3>Real activity summary</h3>
+          <p>This panel is calculated only from your saved actions in this browser.</p>
+          <div id="adaptiveRealData"></div>
         </div>
       </div>
     </section>
@@ -281,7 +306,7 @@
 
     <section id="coach" class="section">
       <div class="topbar">
-        <div><h2>Conversation Coach</h2><p>先讓你完整回答一段，再提供少量且重要的糾正。</p></div>
+        <div><h2>Conversation Coach</h2><p>完成一段想法後才糾正；修正、重新回答和目標單字都留在同一個流程裡。</p></div>
         <select id="coachMode" onchange="resetChat()" style="padding:10px;border:1px solid var(--line);border-radius:12px">
           <option>Topic conversation</option>
           <option>Daily-life roleplay</option>
@@ -289,46 +314,83 @@
           <option>Free conversation</option>
         </select>
       </div>
+
       <div class="grid grid-2">
         <div class="card">
+          <div class="coach-topic">
+            <span class="tag green">Speaking focus</span>
+            <h3 id="coachTopicTitle">Procrastination: time management or emotion?</h3>
+            <p id="coachTopicGoal" style="margin:0">Explain your opinion, give one reason, and connect ideas naturally.</p>
+          </div>
+
           <div class="chat" id="chat">
             <div class="bubble ai">Some people think procrastination is mainly a time-management problem. Others think it is an emotional problem. What do you think?</div>
           </div>
-          <div class="input-row">
-            <input id="chatInput" placeholder="Write a full paragraph before sending..." onkeydown="if(event.key==='Enter'){sendChat()}">
-            <button class="btn" onclick="sendChat()">Send</button>
+
+          <div class="coach-composer">
+            <textarea id="chatInput" placeholder="Write or dictate a complete paragraph. Press Ctrl/⌘ + Enter to send."
+              onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){sendChat()}"></textarea>
+            <div class="coach-actions">
+              <button class="btn" onclick="sendChat()">Send paragraph</button>
+              <button id="micButton" class="btn secondary" onclick="startSpeechInput()">🎙 Speak</button>
+              <button class="btn secondary" onclick="speakLastQuestion()">🔊 Hear question</button>
+              <button class="btn small secondary" onclick="showCoachHint()">Sentence starter</button>
+            </div>
+            <div id="coachHintPanel"></div>
+            <div id="sideQuestionPanel"></div>
           </div>
+
           <div class="toolbar">
-            <button class="btn small secondary" onclick="giveHint()">Give me a sentence starter</button>
-            <button class="btn small secondary" onclick="saveForLater()">Save a side question</button>
+            <button class="btn small secondary" onclick="toggleSideQuestion()">Save a side question</button>
+            <button class="btn small secondary" onclick="endConversationSession()">End & review session</button>
           </div>
         </div>
+
         <div class="card">
-          <h3>Coach settings</h3>
-          <div class="vocab-item">
-            <b>Correction timing</b>
-            <p style="margin:6px 0 0">After each paragraph — never interrupt mid-thought.</p>
-          </div>
+          <h3>Live learning goals</h3>
           <div class="vocab-item">
             <b>Target expressions</b>
-            <div style="margin-top:8px"><span class="tag">put off</span><span class="tag">overwhelmed</span><span class="tag">get started</span></div>
+            <div id="targetExpressions" style="margin-top:8px">
+              <span id="target-put-off" class="target-chip">○ put off</span>
+              <span id="target-overwhelmed" class="target-chip">○ overwhelmed</span>
+              <span id="target-get-started" class="target-chip">○ get started</span>
+            </div>
+            <p class="muted" style="margin-bottom:0">自然使用的表達會變成綠色；明確提示後使用不會得到相同熟練度。</p>
           </div>
           <div class="vocab-item">
             <b>Grammar focus</b>
             <p style="margin:6px 0 0">because / even though / when / so</p>
           </div>
           <div class="vocab-item">
-            <b>Feedback limit</b>
-            <p style="margin:6px 0 0">Maximum 2–3 corrections per turn.</p>
+            <b>Correction policy</b>
+            <p style="margin:6px 0 0">先回應內容，再顯示最多三個最重要的語言問題。</p>
+          </div>
+          <div class="vocab-item">
+            <b>Current session</b>
+            <div class="conversation-stat"><span>Paragraphs</span><strong id="conversationTurns">0</strong></div>
+            <div class="conversation-stat"><span>Retries</span><strong id="conversationRetries">0</strong></div>
+            <div class="conversation-stat"><span>Targets used</span><strong id="conversationTargets">0/3</strong></div>
           </div>
         </div>
       </div>
+
+      <div id="conversationSummary" class="card session-summary hidden"></div>
     </section>
 
     <section id="library" class="section">
       <div class="topbar">
         <div><h2>Learning Library</h2><p>保存的不只是單字，而是來源、搭配、你的句子、錯誤與複習狀態。</p></div>
-        <button class="btn" onclick="addCustomWord()">+ Add expression</button>
+        <button class="btn" onclick="toggleAddExpression()">+ Add expression</button>
+      </div>
+      <div id="addExpressionPanel" class="inline-form hidden">
+        <h3 style="margin-top:0">Add an expression</h3>
+        <input id="customWord" placeholder="Expression or phrase, e.g. cope with">
+        <input id="customMeaning" placeholder="Meaning in Chinese or simple English">
+        <input id="customExample" placeholder="Example sentence">
+        <div class="toolbar">
+          <button class="btn small" onclick="saveCustomWord()">Save expression</button>
+          <button class="btn small secondary" onclick="toggleAddExpression()">Cancel</button>
+        </div>
       </div>
       <div class="tabs">
         <button class="active" onclick="showLibraryTab('due',this)">Due today</button>
@@ -341,42 +403,56 @@
 
     <section id="progress" class="section">
       <div class="topbar">
-        <div><h2>Progress That Matters</h2><p>不是只看答題數，而是看你能否在無提示的新情境中使用英文。</p></div>
-        <div class="pill">Last 4 weeks</div>
+        <div><h2>Progress From Real Data</h2><p>Every number below is calculated from actions completed in this browser.</p></div>
+        <div class="pill" id="progressPeriod">All local activity</div>
       </div>
-      <div class="grid grid-3">
-        <div class="card"><p>Active vocabulary</p><h3 style="font-size:34px">18</h3><span class="tag green">+6 this week</span></div>
-        <div class="card"><p>Average speaking turn</p><h3 style="font-size:34px">42 sec</h3><span class="tag green">+11 sec</span></div>
-        <div class="card"><p>Grammar recurrence</p><h3 style="font-size:34px">-23%</h3><span class="tag green">Improving</span></div>
+      <div id="progressContent"></div>
+    </section>
+
+    <section id="status" class="section">
+      <div class="topbar">
+        <div><h2>System Status & Data</h2><p>Use this page to distinguish a working feature, a browser limitation, and a feature that has not been connected yet.</p></div>
+        <span class="feature-status working">Working Build v1.0</span>
       </div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>Feature status</h3>
+          <div class="settings-row"><b>Vocabulary & spaced review</b><span>Local storage, review history and due dates</span><span class="feature-status working">Working</span></div>
+          <div class="settings-row"><b>Reading & word lookup</b><span>Included article and contextual word cards</span><span class="feature-status working">Working</span></div>
+          <div class="settings-row"><b>Conversation feedback</b><span>Local grammar rules; not full semantic AI</span><span class="feature-status limited">Rule-based</span></div>
+          <div class="settings-row"><b>Writing feedback</b><span>Local word-count and selected grammar rules</span><span class="feature-status limited">Rule-based</span></div>
+          <div class="settings-row"><b>Speech input</b><span id="speechStatusText">Checking browser support…</span><span id="speechStatusBadge" class="feature-status limited">Checking</span></div>
+          <div class="settings-row"><b>Question audio</b><span id="ttsStatusText">Checking browser support…</span><span id="ttsStatusBadge" class="feature-status limited">Checking</span></div>
+          <div class="settings-row"><b>Cloud AI understanding</b><span>Requires a secure backend; no API key is stored here</span><span class="feature-status unavailable">Not connected</span></div>
+          <div class="settings-row"><b>Cloud sync/account</b><span>Data currently stays in this browser only</span><span class="feature-status unavailable">Not connected</span></div>
+        </div>
+
+        <div class="card">
+          <h3>Self-test</h3>
+          <p>Run this after opening the app on a new browser or device.</p>
+          <button class="btn" onclick="runSelfTest()">Run self-test</button>
+          <div id="selfTestResults" style="margin-top:14px"></div>
+        </div>
+      </div>
+
       <div class="grid grid-2" style="margin-top:18px">
         <div class="card">
-          <h3>Most frequent language issues</h3>
-          <table>
-            <tr><th>Pattern</th><th>4 weeks ago</th><th>Now</th></tr>
-            <tr><td>need/want + to + verb</td><td>8</td><td>3</td></tr>
-            <tr><td>Articles (a/an/the)</td><td>10</td><td>7</td></tr>
-            <tr><td>Sentence linking</td><td>12</td><td>6</td></tr>
-            <tr><td>Natural collocations</td><td>9</td><td>7</td></tr>
-          </table>
+          <h3>Export / import</h3>
+          <p>Export creates a JSON backup containing your words, reviews, writing and conversation records.</p>
+          <div class="toolbar">
+            <button class="btn" onclick="exportData()">Export JSON</button>
+            <label class="btn secondary" style="display:inline-flex;align-items:center">Import JSON<input id="importFile" type="file" accept="application/json" onchange="importData(event)" style="display:none"></label>
+          </div>
+          <div id="dataSummary" class="muted"></div>
         </div>
+
         <div class="card">
-          <h3>Engagement signals</h3>
-          <div class="bar-row"><span>Psychology</span><div class="progress"><span style="width:92%"></span></div><strong>92</strong></div>
-          <div class="bar-row"><span>Daily life</span><div class="progress"><span style="width:81%"></span></div><strong>81</strong></div>
-          <div class="bar-row"><span>Business</span><div class="progress"><span style="width:69%"></span></div><strong>69</strong></div>
-          <p>Next articles should remain familiar in topic while slightly increasing sentence complexity.</p>
+          <h3>Reset local data</h3>
+          <p>This only clears FluentLoop data in the current browser. Type <b>RESET</b> to enable the button.</p>
+          <input id="resetText" placeholder="Type RESET" oninput="updateResetButton()" style="width:100%;border:1px solid var(--line);border-radius:12px;padding:11px">
+          <button id="resetButton" class="btn" style="margin-top:10px;background:var(--danger)" disabled onclick="resetAllData()">Reset all data</button>
         </div>
-      </div>
-      <div class="card" style="margin-top:18px">
-        <h3>Writing comparison</h3>
-        <table>
-          <tr><th>Metric</th><th>4 weeks ago</th><th>This week</th></tr>
-          <tr><td>Average sentence length</td><td>8.4 words</td><td>11.2 words</td></tr>
-          <tr><td>Correct linking expressions</td><td>2 types</td><td>5 types</td></tr>
-          <tr><td>Article errors / 100 words</td><td>7</td><td>4</td></tr>
-          <tr><td>New expressions used actively</td><td>2</td><td>6</td></tr>
-        </table>
       </div>
     </section>
   </main>
@@ -387,6 +463,7 @@
   <button data-section="learn">Learn</button>
   <button data-section="coach">Coach</button>
   <button data-section="library">Library</button>
+  <button data-section="status">Status</button>
 </div>
 
 <div id="toast" class="toast"></div>
@@ -463,16 +540,90 @@ const vocabData = {
   }
 };
 
-let state = JSON.parse(localStorage.getItem("fluentLoopState") || "null") || {
-  lookups:[], completed:[], minutes:0, words:{}, writings:[]
-};
+const STATE_KEY="fluentLoopWorkingStateV1";
+const todayKey=()=>new Date().toISOString().slice(0,10);
+const addDays=(dateString,days)=>{const d=new Date(dateString||Date.now());d.setDate(d.getDate()+days);return d.toISOString()};
 
-function saveState(){ localStorage.setItem("fluentLoopState",JSON.stringify(state)); updateDashboard(); }
+const emptyState=()=>({
+  schemaVersion:1,
+  currentDay:todayKey(),
+  lookups:[], completed:[], minutes:0, words:{}, customWords:{}, writings:[],
+  conversations:[], laterQuestions:[], readingSessions:[], activityDates:[], eventLog:[]
+});
+
+function loadState(){
+  try{
+    const stored=JSON.parse(localStorage.getItem(STATE_KEY)||"null");
+    return stored && stored.schemaVersion===1 ? {...emptyState(),...stored} : emptyState();
+  }catch(error){
+    console.error("State load failed",error);
+    return emptyState();
+  }
+}
+
+let state=loadState();
+if(state.currentDay!==todayKey()){
+  state.currentDay=todayKey();
+  state.completed=[];
+  state.minutes=0;
+}
+state.conversations=state.conversations||[];
+state.laterQuestions=state.laterQuestions||[];
+state.customWords=state.customWords||{};
+state.readingSessions=state.readingSessions||[];
+state.activityDates=state.activityDates||[];
+state.eventLog=state.eventLog||[];
+
+
+function applyStoredWords(){
+  Object.entries(state.customWords).forEach(([word,data])=>{vocabData[word]={...data}});
+  Object.entries(vocabData).forEach(([word,data])=>{
+    const stored=state.words[word]||{};
+    Object.assign(data,stored);
+    if(!data.dueAt) data.dueAt=(data.status==='active'&&data.strength<65)?new Date().toISOString():addDays(new Date().toISOString(),3);
+    if(data.reviewCount===undefined) data.reviewCount=0;
+  });
+}
+applyStoredWords();
+
+function logActivity(type,details={}){
+  if(!state.activityDates.includes(todayKey())) state.activityDates.push(todayKey());
+  state.eventLog.push({type,details,at:new Date().toISOString()});
+  if(state.eventLog.length>500) state.eventLog=state.eventLog.slice(-500);
+}
+
+function persistWord(word){
+  const d=vocabData[word];
+  state.words[word]={
+    status:d.status,strength:d.strength,dueAt:d.dueAt,reviewCount:d.reviewCount||0,
+    lastReviewed:d.lastReviewed||null,lastSentence:d.lastSentence||null,
+    meaning:d.meaning,simple:d.simple,example:d.example,collocations:d.collocations
+  };
+  if(d.custom) state.customWords[word]={...d};
+}
+
+function saveState(){
+  try{
+    localStorage.setItem(STATE_KEY,JSON.stringify(state));
+    updateDashboard();
+    renderStatusSummary();
+    return true;
+  }catch(error){
+    console.error("Save failed",error);
+    toast("Could not save local data");
+    return false;
+  }
+}
+
 function switchSection(id){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  const section=document.getElementById(id);
+  if(!section){toast("Section unavailable");return}
+  section.classList.add('active');
   document.querySelectorAll('[data-section]').forEach(b=>b.classList.toggle('active',b.dataset.section===id));
   if(id==='library') renderLibrary('due');
+  if(id==='progress') renderProgress();
+  if(id==='status'){detectBrowserFeatures();renderStatusSummary()}
   window.scrollTo({top:0,behavior:'smooth'});
 }
 document.querySelectorAll('[data-section]').forEach(b=>b.addEventListener('click',()=>switchSection(b.dataset.section)));
@@ -485,17 +636,50 @@ function openModePicker(){document.getElementById('modeModal').style.display='gr
 function closeModal(id){document.getElementById(id).style.display='none'}
 function chooseMode(name,mins){
   state.minutes=Math.max(state.minutes,mins);
+  logActivity('session_mode',{name,mins});
   saveState();closeModal('modeModal');switchSection(name==='Quick'?'library':'learn');
   toast(name+" mode started");
 }
 function completeTask(task){
   if(!state.completed.includes(task)) state.completed.push(task);
+  logActivity('task_completed',{task});
   saveState();toast("Task completed");
 }
+function dueWords(){
+  const now=Date.now();
+  return Object.entries(vocabData).filter(([_,v])=>v.status==='active' && new Date(v.dueAt||0).getTime()<=now);
+}
+function calculateStreak(){
+  const dates=new Set(state.activityDates);
+  let streak=0,d=new Date();
+  while(dates.has(d.toISOString().slice(0,10))){streak++;d.setDate(d.getDate()-1)}
+  return streak;
+}
 function updateDashboard(){
-  document.getElementById('doneCount').textContent=Math.min(state.completed.length,5)+"/5";
-  document.getElementById('minutes').textContent=state.minutes+"m";
-  document.getElementById('dueCount').textContent=Object.values(vocabData).filter(v=>v.status==='active'&&v.strength<65).length;
+  const done=document.getElementById('doneCount'); if(done) done.textContent=Math.min(state.completed.length,5)+"/5";
+  const mins=document.getElementById('minutes'); if(mins) mins.textContent=state.minutes+"m";
+  const due=document.getElementById('dueCount'); if(due) due.textContent=dueWords().length;
+  const streak=document.getElementById('streak'); if(streak) streak.textContent=calculateStreak();
+  renderAdaptiveRealData();
+}
+function renderAdaptiveRealData(){
+  const el=document.getElementById('adaptiveRealData'); if(!el)return;
+  const reviews=Object.values(state.words).reduce((n,w)=>n+(w.reviewCount||0),0);
+  const turns=state.conversations.reduce((n,c)=>n+(c.turns||[]).filter(t=>!t.retry).length,0);
+  const writingCount=state.writings.length;
+  const lookupCount=state.lookups.length;
+  el.innerHTML=`
+    <div class="conversation-stat"><span>Words reviewed</span><strong>${reviews}</strong></div>
+    <div class="conversation-stat"><span>Conversation paragraphs</span><strong>${turns}</strong></div>
+    <div class="conversation-stat"><span>Writing samples</span><strong>${writingCount}</strong></div>
+    <div class="conversation-stat"><span>Words looked up</span><strong>${lookupCount}</strong></div>
+    <div style="margin-top:14px;padding:13px;background:var(--amber-soft);border-radius:12px"><b>Current recommendation</b><p style="margin-bottom:0">${getRealRecommendation()}</p></div>`;
+}
+function getRealRecommendation(){
+  if(dueWords().length) return `Review ${dueWords().length} due expression${dueWords().length>1?'s':''} before adding many new words.`;
+  if(!state.conversations.length) return 'Complete one conversation so the app can start tracking recurring grammar issues.';
+  if(!state.writings.length) return 'Complete one short writing sample to create a writing baseline.';
+  return 'Continue with a new context and reuse one previously learned expression without a hint.';
 }
 updateDashboard();
 
@@ -525,7 +709,7 @@ function renderLookupList(){
   el.innerHTML=state.lookups.map(w=>`<span class="tag amber">${w}</span>`).join('');
 }
 function setWordStatus(word,status){
-  vocabData[word].status=status; state.words[word]={status};
+  vocabData[word].status=status; persistWord(word); logActivity('word_status',{word,status});
   saveState();toast(status==='active'?"Added to active learning":"Kept for passive exposure");
 }
 function simplifyArticle(){
@@ -545,63 +729,353 @@ function reviewReadingAnswer(){
   <p>You explained the short-term emotional benefit. To make the answer more complete, add what happens later.</p>
   <b>Possible upgrade:</b>
   <p>Procrastination can make people feel better temporarily because they avoid an uncomfortable task. However, the stress usually returns and may become stronger later.</p></div>`;
+  state.readingSessions.push({date:new Date().toISOString(),answer:text,lookups:[...state.lookups],simplified:document.querySelector('.article').innerText.includes('People sometimes delay')});
+  logActivity('reading_answer',{words:text.split(/\s+/).length});
   completeTask('reading');
 }
 function finishReading(){
   completeTask('reading');
   const recommended=state.lookups.filter(w=>vocabData[w]?.status==='active');
+  state.readingSessions.push({date:new Date().toISOString(),answer:null,lookups:[...state.lookups],finished:true});
+  logActivity('reading_finished',{lookups:state.lookups.length}); saveState();
   toast(`Reading saved. ${recommended.length||3} words recommended for review.`);
 }
 
 let chatStep=0;
-const followUps=[
-  "That makes sense. What usually makes it easier for you to get started?",
-  "Can you describe a recent situation when you felt overwhelmed?",
-  "What advice would you give to someone who keeps putting off an important task?"
-];
+let awaitingRetry=false;
+let lastQuestion="Some people think procrastination is mainly a time-management problem. Others think it is an emotional problem. What do you think?";
+let speechRecognition=null;
+let conversationSession={turns:[],retries:0,usedTargets:new Set(),corrections:[],sideQuestions:[]};
+
+const conversationConfigs={
+  "Topic conversation":{
+    title:"Procrastination: time management or emotion?",
+    goal:"Explain your opinion, give one reason, and connect ideas naturally.",
+    first:"Some people think procrastination is mainly a time-management problem. Others think it is an emotional problem. What do you think?",
+    follow:[
+      "What usually makes it easier for you to get started?",
+      "Can you describe a recent situation when you felt overwhelmed?",
+      "What advice would you give to someone who keeps putting off an important task?"
+    ]
+  },
+  "Daily-life roleplay":{
+    title:"A friend keeps cancelling plans",
+    goal:"Express disappointment politely and suggest a solution.",
+    first:"I’m sorry, but I need to cancel our plans again. How would you respond?",
+    follow:[
+      "How could you explain your feelings without sounding aggressive?",
+      "What new plan would you suggest?",
+      "What would you do if the same problem happened again?"
+    ]
+  },
+  "Business conversation":{
+    title:"A project is falling behind schedule",
+    goal:"Explain a problem, take responsibility, and propose next steps.",
+    first:"Your manager asks why the project is late. How would you explain the situation?",
+    follow:[
+      "Which part of the project feels most overwhelming?",
+      "How would you break the remaining work into smaller steps?",
+      "What deadline would you propose, and why?"
+    ]
+  },
+  "Free conversation":{
+    title:"Free conversation",
+    goal:"Talk naturally; the coach will follow your topic and correct after each paragraph.",
+    first:"What has been on your mind recently?",
+    follow:[
+      "Why is that important to you?",
+      "Can you give me a specific example?",
+      "How has your opinion changed over time?"
+    ]
+  }
+};
+
+function currentConversationConfig(){
+  return conversationConfigs[document.getElementById('coachMode').value] || conversationConfigs["Topic conversation"];
+}
+
 function sendChat(){
-  const input=document.getElementById('chatInput'), text=input.value.trim();
-  if(!text){toast("Write a complete thought first");return}
-  appendBubble(text,'user');input.value='';
+  const input=document.getElementById('chatInput');
+  const text=input.value.trim();
+  if(!text){toast("Write or say a complete thought first");return}
+
+  const isRetry=awaitingRetry;
+  appendBubble(text,'user',isRetry);
+  input.value='';
+  awaitingRetry=false;
+
+  const analysis=analyzeChatText(text,isRetry);
+  conversationSession.turns.push({
+    text,
+    retry:isRetry,
+    natural:analysis.natural,
+    corrections:analysis.corrections,
+    targets:analysis.targets
+  });
+  if(isRetry) conversationSession.retries++;
+  analysis.corrections.forEach(c=>conversationSession.corrections.push(c));
+  analysis.targets.forEach(t=>conversationSession.usedTargets.add(t));
+  updateConversationStats();
+  updateTargetChips();
+
   setTimeout(()=>{
-    const correction=analyzeChatText(text);
-    appendFeedback(correction);
-    appendBubble(followUps[Math.min(chatStep,followUps.length-1)],'ai');
+    appendCoachFeedback(analysis,text);
+    const config=currentConversationConfig();
+    const next=config.follow[Math.min(chatStep,config.follow.length-1)];
+    lastQuestion=next;
+    appendBubble(next,'ai');
     chatStep++;
     completeTask('conversation');
-  },350);
+  },250);
 }
-function appendBubble(text,type){
+
+function appendBubble(text,type,isRetry=false){
   const chat=document.getElementById('chat');
-  const div=document.createElement('div');div.className='bubble '+type;div.textContent=text;chat.appendChild(div);chat.scrollTop=chat.scrollHeight;
+  const div=document.createElement('div');
+  div.className='bubble '+type;
+  div.innerHTML=escapeHtml(text)+(isRetry?'<span class="retry-badge">Retry</span>':'');
+  chat.appendChild(div);
+  chat.scrollTop=chat.scrollHeight;
 }
-function appendFeedback(html){
+
+function appendCoachFeedback(analysis,originalText){
   const chat=document.getElementById('chat');
-  const div=document.createElement('div');div.className='feedback';div.innerHTML=html;chat.appendChild(div);chat.scrollTop=chat.scrollHeight;
+  const div=document.createElement('div');
+  div.className='feedback';
+  const correctionHtml=analysis.corrections.length
+    ? analysis.corrections.map(c=>`• ${c}`).join("<br>")
+    : "No major grammar issue detected. Add a specific example or a stronger linking expression.";
+  div.innerHTML=`
+    <h4>Coach response</h4>
+    <p>${analysis.contentResponse}</p>
+    <p><b>More natural version</b><br>${escapeHtml(analysis.natural)}</p>
+    <p><b>Important language points</b><br>${correctionHtml}</p>
+    ${analysis.targets.length?`<p><b>Target used:</b> ${analysis.targets.join(", ")}</p>`:""}
+    <div class="toolbar">
+      <button class="btn small secondary" onclick='prepareRetry(${JSON.stringify(originalText)})'>Say it again</button>
+      <button class="btn small secondary" onclick="focusComposer()">Continue conversation</button>
+    </div>`;
+  chat.appendChild(div);
+  chat.scrollTop=chat.scrollHeight;
 }
-function analyzeChatText(text){
+
+function analyzeChatText(text,isRetry=false){
   let corrections=[];
-  let natural=text;
-  if(/\bneed (?!to\b)/i.test(text)){corrections.push("Use <b>need to + verb</b>.");natural=natural.replace(/\bneed ([a-z]+)/i,"need to $1")}
-  if(/\bwant (?!to\b)/i.test(text)){corrections.push("Use <b>want to + verb</b>.");natural=natural.replace(/\bwant ([a-z]+)/i,"want to $1")}
-  if(/\bit is emotional problem\b/i.test(text)){corrections.push("Use an article: <b>an emotional problem</b>.");natural=natural.replace(/it is emotional problem/i,"it is an emotional problem")}
-  if(corrections.length===0) corrections.push("Your meaning is clear. Try adding <b>even though</b> or a specific example.");
-  return `<h4>Paragraph feedback</h4>
-    <p><b>Natural version:</b> ${escapeHtml(natural)}</p>
-    <p>${corrections.slice(0,3).join("<br>")}</p>
-    <button class="btn small secondary" onclick="toast('Try saying the full idea again in a new sentence.')">Answer again</button>`;
+  let natural=text.trim();
+  const lower=text.toLowerCase();
+  const targets=[];
+
+  if(lower.includes("put off") || lower.includes("putting off")) targets.push("put off");
+  if(lower.includes("overwhelmed") || lower.includes("overwhelming")) targets.push("overwhelmed");
+  if(lower.includes("get started") || lower.includes("getting started")) targets.push("get started");
+
+  if(/\bneed (?!to\b)/i.test(natural)){
+    corrections.push('Use <b>need to + verb</b>.');
+    natural=natural.replace(/\bneed ([a-z]+)/i,"need to $1");
+  }
+  if(/\bwant (?!to\b)/i.test(natural)){
+    corrections.push('Use <b>want to + verb</b>.');
+    natural=natural.replace(/\bwant ([a-z]+)/i,"want to $1");
+  }
+  if(/\bit is emotional problem\b/i.test(natural)){
+    corrections.push('Use an article: <b>an emotional problem</b>.');
+    natural=natural.replace(/it is emotional problem/i,"it is an emotional problem");
+  }
+  if(/\bmany works\b/i.test(natural)){
+    corrections.push('Use <b>a lot of work</b>; “work” is usually uncountable here.');
+    natural=natural.replace(/\bmany works\b/i,"a lot of work");
+  }
+  if(/\bbecause\s+of\s+people\b/i.test(natural)){
+    corrections.push('Use <b>because + clause</b>, or <b>because of + noun phrase</b>.');
+  }
+  if(!/[.!?]$/.test(natural)) natural += ".";
+  corrections=corrections.slice(0,3);
+
+  let contentResponse="Your point is understandable.";
+  if(/emotional|anxious|stress|overwhel/i.test(lower)){
+    contentResponse="That is a strong point. People may understand the deadline clearly but still avoid the task because it creates stress or anxiety.";
+  }else if(/time|schedule|plan/i.test(lower)){
+    contentResponse="That makes sense. Poor planning can increase procrastination, especially when a large task has no clear first step.";
+  }else if(isRetry){
+    contentResponse="The second version is clearer and more controlled. Repeating the idea helps move the corrected pattern into active use.";
+  }
+
+  return {natural,corrections,targets,contentResponse};
 }
-function giveHint(){
-  document.getElementById('chatInput').value="I think procrastination is partly an emotional problem because...";
+
+function prepareRetry(originalText){
+  awaitingRetry=true;
+  const input=document.getElementById('chatInput');
+  input.value="";
+  input.placeholder="Express the same idea again in a complete paragraph. Try to use the correction without copying it.";
+  input.focus();
+  toast("Retry mode: say the same idea again");
+}
+
+function focusComposer(){
   document.getElementById('chatInput').focus();
 }
-function saveForLater(){
-  const q=prompt("What side question should be saved for later?");
-  if(q) toast("Saved to Later Exploration");
+
+function showCoachHint(){
+  const panel=document.getElementById('coachHintPanel');
+  const config=currentConversationConfig();
+  const hints={
+    "Topic conversation":"I think procrastination is partly an emotional problem because...",
+    "Daily-life roleplay":"I understand that things happen, but I feel disappointed because...",
+    "Business conversation":"The project is behind schedule because..., and I suggest that we...",
+    "Free conversation":"Recently, I have been thinking about... because..."
+  };
+  panel.innerHTML=`<div class="practice-hint"><b>Optional starter:</b> ${hints[document.getElementById('coachMode').value]}</div>`;
 }
+
+function toggleSideQuestion(){
+  const panel=document.getElementById('sideQuestionPanel');
+  if(panel.innerHTML){
+    panel.innerHTML="";
+    return;
+  }
+  panel.innerHTML=`
+    <div class="inline-coach-panel">
+      <b>Save without leaving the conversation</b>
+      <textarea id="sideQuestionInput" style="min-height:70px" placeholder="Example: Why do we say ‘because of’ here?"></textarea>
+      <div class="toolbar">
+        <button class="btn small" onclick="saveSideQuestionInline()">Save for later</button>
+        <button class="btn small secondary" onclick="toggleSideQuestion()">Cancel</button>
+      </div>
+    </div>`;
+}
+
+function saveSideQuestionInline(){
+  const input=document.getElementById('sideQuestionInput');
+  const q=input.value.trim();
+  if(!q){toast("Write the question first");return}
+  state.laterQuestions.push({question:q,date:new Date().toLocaleDateString()});
+  conversationSession.sideQuestions.push(q);
+  saveState();
+  document.getElementById('sideQuestionPanel').innerHTML="";
+  toast("Saved to Later Exploration");
+}
+
+function updateTargetChips(){
+  const map={"put off":"put-off","overwhelmed":"overwhelmed","get started":"get-started"};
+  Object.entries(map).forEach(([target,id])=>{
+    const el=document.getElementById(`target-${id}`);
+    const used=conversationSession.usedTargets.has(target);
+    if(el){
+      el.classList.toggle('used',used);
+      el.textContent=(used?"✓ ":"○ ")+target;
+    }
+  });
+}
+
+function updateConversationStats(){
+  document.getElementById('conversationTurns').textContent=conversationSession.turns.filter(t=>!t.retry).length;
+  document.getElementById('conversationRetries').textContent=conversationSession.retries;
+  document.getElementById('conversationTargets').textContent=`${conversationSession.usedTargets.size}/3`;
+}
+
+function endConversationSession(){
+  const summary=document.getElementById('conversationSummary');
+  if(!conversationSession.turns.length){
+    toast("Complete at least one paragraph first");
+    return;
+  }
+  const commonCorrections=[...new Set(conversationSession.corrections)].slice(0,3);
+  const targets=[...conversationSession.usedTargets];
+  const record={
+    date:new Date().toLocaleString(),
+    mode:document.getElementById('coachMode').value,
+    turns:conversationSession.turns,
+    retries:conversationSession.retries,
+    targets
+  };
+  state.conversations.push(record);
+  logActivity('conversation_saved',{turns:record.turns.length,mode:record.mode});
+  saveState();
+  summary.classList.remove('hidden');
+  summary.innerHTML=`
+    <h3>Conversation session summary</h3>
+    <div class="grid grid-3">
+      <div><p>Original paragraphs</p><h3>${conversationSession.turns.filter(t=>!t.retry).length}</h3></div>
+      <div><p>Retries</p><h3>${conversationSession.retries}</h3></div>
+      <div><p>Targets used</p><h3>${targets.length}/3</h3></div>
+    </div>
+    <p><b>Successfully used:</b> ${targets.length?targets.join(", "):"No target expression yet"}</p>
+    <p><b>Review next:</b> ${commonCorrections.length?commonCorrections.join("<br>"):"Use a wider range of linking expressions."}</p>
+    <div class="toolbar">
+      <button class="btn small" onclick="resetChat()">Start another conversation</button>
+      <button class="btn small secondary" onclick="switchSection('progress')">View progress</button>
+    </div>`;
+  summary.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function startSpeechInput(){
+  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SpeechRecognition){
+    toast("Speech input is not supported in this browser. Try Chrome or Edge.");
+    return;
+  }
+  if(speechRecognition){
+    speechRecognition.stop();
+    return;
+  }
+  speechRecognition=new SpeechRecognition();
+  speechRecognition.lang='en-US';
+  speechRecognition.interimResults=true;
+  speechRecognition.continuous=false;
+  const input=document.getElementById('chatInput');
+  const button=document.getElementById('micButton');
+  let finalText=input.value ? input.value+" " : "";
+  button.classList.add('mic-active');
+  button.textContent="■ Stop";
+
+  speechRecognition.onresult=(event)=>{
+    let interim="";
+    for(let i=event.resultIndex;i<event.results.length;i++){
+      const transcript=event.results[i][0].transcript;
+      if(event.results[i].isFinal) finalText+=transcript+" ";
+      else interim+=transcript;
+    }
+    input.value=(finalText+interim).trim();
+  };
+  speechRecognition.onerror=()=>toast("Speech recognition could not capture the audio.");
+  speechRecognition.onend=()=>{
+    speechRecognition=null;
+    button.classList.remove('mic-active');
+    button.textContent="🎙 Speak";
+    input.focus();
+  };
+  speechRecognition.start();
+}
+
+function speakLastQuestion(){
+  if(!('speechSynthesis' in window)){
+    toast("Text-to-speech is not supported in this browser.");
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utterance=new SpeechSynthesisUtterance(lastQuestion);
+  utterance.lang='en-US';
+  utterance.rate=0.9;
+  window.speechSynthesis.speak(utterance);
+}
+
 function resetChat(){
   chatStep=0;
-  document.getElementById('chat').innerHTML=`<div class="bubble ai">Tell me about a situation related to ${document.getElementById('coachMode').value.toLowerCase()}. I will wait until you finish your paragraph before correcting it.</div>`;
+  awaitingRetry=false;
+  conversationSession={turns:[],retries:0,usedTargets:new Set(),corrections:[],sideQuestions:[]};
+  const config=currentConversationConfig();
+  document.getElementById('coachTopicTitle').textContent=config.title;
+  document.getElementById('coachTopicGoal').textContent=config.goal;
+  lastQuestion=config.first;
+  document.getElementById('chat').innerHTML=`<div class="bubble ai">${escapeHtml(config.first)}</div>`;
+  document.getElementById('chatInput').value="";
+  document.getElementById('chatInput').placeholder="Write or dictate a complete paragraph. Press Ctrl/⌘ + Enter to send.";
+  document.getElementById('coachHintPanel').innerHTML="";
+  document.getElementById('sideQuestionPanel').innerHTML="";
+  document.getElementById('conversationSummary').classList.add('hidden');
+  updateConversationStats();
+  updateTargetChips();
 }
 
 function showLibraryTab(type,btn){
@@ -618,36 +1092,173 @@ function renderLibrary(type='due'){
   let entries=Object.entries(vocabData);
   if(type==='active') entries=entries.filter(([k,v])=>v.status==='active');
   if(type==='passive') entries=entries.filter(([k,v])=>v.status==='passive');
-  if(type==='due') entries=entries.filter(([k,v])=>v.status==='active'&&v.strength<65);
-  content.innerHTML=entries.map(([word,d])=>`
-    <div class="vocab-item">
+  if(type==='due') entries=entries.filter(([k,v])=>v.status==='active'&&new Date(v.dueAt||0).getTime()<=Date.now());
+  content.innerHTML=entries.map(([word,d])=>{
+    const key=encodeURIComponent(word);
+    return `
+    <div class="vocab-item" data-vocab-card="${key}">
       <div class="vocab-head"><div><h3 style="margin:0">${word}</h3><span class="muted">${d.meaning}</span></div>
       <span class="status ${d.status}">${d.status==='active'?'Active learning':'Passive exposure'}</span></div>
       <p>${d.example}</p>
       <div>${d.collocations.map(x=>`<span class="tag">${x}</span>`).join('')}</div>
       <div class="bar-row" style="grid-template-columns:90px 1fr 55px"><span>Strength</span><div class="progress"><span style="width:${d.strength}%"></span></div><strong>${d.strength}%</strong></div>
+      <p class="muted" style="margin:8px 0">Next review: ${new Date(d.dueAt).toLocaleDateString()}</p>
       <div class="toolbar">
-        <button class="btn small" onclick="reviewWord('${word}')">Review now</button>
-        <button class="btn small secondary" onclick="makeSentence('${word}')">Make a sentence</button>
+        <button class="btn small" onclick="togglePractice('${key}','review')">Review now</button>
+        <button class="btn small secondary" onclick="togglePractice('${key}','sentence')">Make a sentence</button>
       </div>
-    </div>`).join('') || '<div class="card"><p>Nothing in this category yet.</p></div>';
+      <div id="practice-${key}" class="practice-panel hidden"></div>
+    </div>`;
+  }).join('') || '<div class="card"><p>Nothing in this category yet.</p></div>';
 }
-function reviewWord(word){
+
+function closeOtherPracticePanels(exceptId){
+  document.querySelectorAll('.practice-panel').forEach(panel=>{
+    if(panel.id!==exceptId) panel.classList.add('hidden');
+  });
+}
+
+function togglePractice(encodedWord,mode){
+  const word=decodeURIComponent(encodedWord);
+  const panel=document.getElementById(`practice-${encodedWord}`);
+  if(!panel)return;
+  const sameMode=panel.dataset.mode===mode && !panel.classList.contains('hidden');
+  closeOtherPracticePanels(panel.id);
+  if(sameMode){panel.classList.add('hidden');return}
+  panel.dataset.mode=mode;
+  panel.classList.remove('hidden');
   const d=vocabData[word];
-  const answer=prompt(`Without copying the example, write one true sentence using "${word}".`);
-  if(answer){
-    const self=confirm("Could you use it without a hint?");
-    d.strength=Math.min(100,d.strength+(self?12:5));
-    saveState();renderLibrary('due');toast(self?"Review interval extended":"Scheduled again soon");
+
+  if(mode==='review'){
+    panel.innerHTML=`
+      <h4>Recall the meaning in context</h4>
+      <p>用自己的話解釋 <b>${word}</b> 在這個句子中的意思：</p>
+      <p class="example">${d.example}</p>
+      <textarea id="review-input-${encodedWord}" placeholder="You may answer in English or Chinese..."></textarea>
+      <div class="toolbar">
+        <button class="btn small" onclick="checkInlineReview('${encodedWord}')">Check answer</button>
+        <button class="btn small secondary" onclick="showInlineHint('${encodedWord}','review')">I need a hint</button>
+        <button class="btn small secondary" onclick="togglePractice('${encodedWord}','review')">Close</button>
+      </div>
+      <div id="hint-${encodedWord}"></div>
+      <div id="feedback-${encodedWord}"></div>`;
+  }else{
+    panel.innerHTML=`
+      <h4>Use it in a true sentence</h4>
+      <p>請用 <b>${word}</b> 描述你自己的經驗或想法，不要複製原例句。</p>
+      <textarea id="sentence-input-${encodedWord}" placeholder="Write one complete English sentence..."></textarea>
+      <div class="toolbar">
+        <button class="btn small" onclick="checkInlineSentence('${encodedWord}')">Review my sentence</button>
+        <button class="btn small secondary" onclick="showInlineHint('${encodedWord}','sentence')">Sentence starter</button>
+        <button class="btn small secondary" onclick="togglePractice('${encodedWord}','sentence')">Close</button>
+      </div>
+      <div id="hint-${encodedWord}"></div>
+      <div id="feedback-${encodedWord}"></div>`;
+  }
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function showInlineHint(encodedWord,mode){
+  const word=decodeURIComponent(encodedWord);
+  const d=vocabData[word];
+  const hint=document.getElementById(`hint-${encodedWord}`);
+  if(mode==='review'){
+    hint.innerHTML=`<div class="practice-hint"><b>Simple English hint:</b> ${d.simple}</div>`;
+  }else{
+    const starters={
+      "put off":"I sometimes put off...",
+      "overwhelming":"A situation feels overwhelming when...",
+      "criticism":"I find criticism helpful when...",
+      "temporary relief":"I feel temporary relief when...",
+      "break into smaller steps":"I can break this goal into smaller steps by...",
+      "get started":"It is easier for me to get started when..."
+    };
+    hint.innerHTML=`<div class="practice-hint"><b>Optional starter:</b> ${starters[word] || `I use “${word}” when...`}</div>`;
   }
 }
-function makeSentence(word){reviewWord(word)}
-function addCustomWord(){
-  const word=prompt("Expression or phrase:");
-  if(!word)return;
-  vocabData[word]={meaning:"Your saved expression",simple:"Add a definition later.",example:"Create your own example.",collocations:[],status:"active",strength:15,next:"Today"};
-  renderLibrary('active');toast("Expression added");
+
+function scheduleWordReview(word,quality){
+  const d=vocabData[word];
+  d.reviewCount=(d.reviewCount||0)+1;
+  const intervals=quality>=3?[3,7,14,30,60]:quality===2?[1,3,7,14,30]:[1,1,2,3,7];
+  const days=intervals[Math.min(d.reviewCount-1,intervals.length-1)];
+  d.dueAt=addDays(new Date().toISOString(),days);
+  d.lastReviewed=new Date().toISOString();
+  persistWord(word);
+  logActivity('word_review',{word,quality,nextDays:days});
+  return days;
 }
+
+function checkInlineReview(encodedWord){
+  const word=decodeURIComponent(encodedWord);
+  const d=vocabData[word];
+  const input=document.getElementById(`review-input-${encodedWord}`);
+  const feedback=document.getElementById(`feedback-${encodedWord}`);
+  const answer=input.value.trim();
+  if(!answer){toast("Write your explanation first");return}
+  const strong=answer.length>=12;
+  d.strength=Math.min(100,d.strength+(strong?8:4));
+  const days=scheduleWordReview(word,strong?2:1);
+  saveState();
+  feedback.innerHTML=`
+    <div class="practice-feedback">
+      <b>${strong?'Good contextual recall':'Meaning reviewed'}</b>
+      <p style="margin:7px 0"><b>Core meaning:</b> ${d.meaning}</p>
+      <p style="margin:7px 0"><b>Useful pattern:</b> ${d.collocations[0] || d.example}</p>
+      <p style="margin:7px 0"><b>Next scheduled review:</b> ${days} day${days>1?'s':''}</p>
+      <button class="btn small secondary" onclick="togglePractice('${encodedWord}','sentence')">Continue to make a sentence</button>
+    </div>`;
+}
+
+function checkInlineSentence(encodedWord){
+  const word=decodeURIComponent(encodedWord);
+  const d=vocabData[word];
+  const input=document.getElementById(`sentence-input-${encodedWord}`);
+  const feedback=document.getElementById(`feedback-${encodedWord}`);
+  const sentence=input.value.trim();
+  if(!sentence){toast("Write a sentence first");return}
+  const hasEnoughWords=sentence.split(/\s+/).length>=5;
+  const appears=sentence.toLowerCase().includes(word.toLowerCase().split(/\s+/)[0]);
+  let notes=[];
+  if(!hasEnoughWords) notes.push("Try adding a reason, example, or situation.");
+  if(!appears) notes.push(`Make sure the sentence clearly uses “${word}”.`);
+  if(/\bmany works\b/i.test(sentence)) notes.push("Use “a lot of work”; “work” is usually uncountable here.");
+  if(/\bneed (?!to\b)/i.test(sentence)) notes.push("Use “need to + verb.”");
+  if(/\bwant (?!to\b)/i.test(sentence)) notes.push("Use “want to + verb.”");
+  if(!notes.length) notes.push("The sentence is clear. Next, use the expression in conversation without a prompt.");
+  const success=hasEnoughWords&&appears;
+  d.strength=Math.min(100,d.strength+(success?12:5));
+  d.lastSentence=sentence;
+  const days=scheduleWordReview(word,success?3:1);
+  saveState();
+  feedback.innerHTML=`
+    <div class="practice-feedback">
+      <b>Sentence feedback</b>
+      <p style="margin:7px 0"><b>Your sentence:</b> ${escapeHtml(sentence)}</p>
+      <p style="margin:7px 0">${notes.join("<br>")}</p>
+      <p style="margin:7px 0"><b>Natural model:</b> ${d.example}</p>
+      <p style="margin:7px 0"><b>Next scheduled review:</b> ${days} day${days>1?'s':''}</p>
+      <button class="btn small secondary" onclick="document.getElementById('sentence-input-${encodedWord}').focus()">Try again</button>
+    </div>`;
+}
+
+function toggleAddExpression(){
+  document.getElementById('addExpressionPanel').classList.toggle('hidden');
+}
+function saveCustomWord(){
+  const word=document.getElementById('customWord').value.trim();
+  const meaning=document.getElementById('customMeaning').value.trim();
+  const example=document.getElementById('customExample').value.trim();
+  if(!word||!meaning||!example){toast('Complete all three fields');return}
+  vocabData[word]={meaning,simple:meaning,example,collocations:[],status:'active',strength:15,dueAt:new Date().toISOString(),reviewCount:0,custom:true};
+  persistWord(word);
+  logActivity('custom_word_added',{word});
+  saveState();
+  ['customWord','customMeaning','customExample'].forEach(id=>document.getElementById(id).value='');
+  toggleAddExpression();renderLibrary('active');toast('Expression added');
+}
+
+function addCustomWord(){toggleAddExpression()}
 
 function openWriting(){document.getElementById('writingModal').style.display='grid'}
 function analyzeWriting(){
@@ -665,12 +1276,79 @@ function analyzeWriting(){
     <p><b>Minimum correction:</b><br>${escapeHtml(corrected)}</p>
     <p><b>B2 upgrade goal:</b> Add one contrast sentence using <i>even though</i> and one concrete example.</p>
   </div>`;
-  state.writings.push({text,date:new Date().toLocaleDateString()});
+  state.writings.push({text,date:new Date().toISOString(),wordCount:words,usedPutOff,usedLink,estimatedIssues:(text.match(/\bneed (?!to\b)|\bwant (?!to\b)|\bmany works\b/gi)||[]).length});
+  logActivity('writing_saved',{words});
   completeTask('writing');saveState();
 }
+function countWords(text){return (text||'').trim().split(/\s+/).filter(Boolean).length}
+function renderProgress(){
+  const root=document.getElementById('progressContent'); if(!root)return;
+  const activeWords=Object.values(vocabData).filter(v=>v.status==='active').length;
+  const reviewCount=Object.values(state.words).reduce((n,w)=>n+(w.reviewCount||0),0);
+  const turns=state.conversations.flatMap(c=>(c.turns||[])).filter(t=>!t.retry);
+  const avgTurn=turns.length?Math.round(turns.reduce((n,t)=>n+countWords(t.text),0)/turns.length):0;
+  const corrections=state.conversations.flatMap(c=>(c.turns||[]).flatMap(t=>t.corrections||[]));
+  const issueCounts={}; corrections.forEach(c=>{const plain=c.replace(/<[^>]+>/g,'');issueCounts[plain]=(issueCounts[plain]||0)+1});
+  const issues=Object.entries(issueCounts).sort((a,b)=>b[1]-a[1]);
+  const writings=state.writings;
+  const first=writings[0], latest=writings[writings.length-1];
+  const modeCounts={}; state.conversations.forEach(c=>modeCounts[c.mode]=(modeCounts[c.mode]||0)+1);
+  root.innerHTML=`
+    <div class="grid grid-3">
+      <div class="card"><p>Active vocabulary</p><h3 style="font-size:34px">${activeWords}</h3><span class="tag green">${reviewCount} reviews completed</span></div>
+      <div class="card"><p>Average conversation paragraph</p><h3 style="font-size:34px">${avgTurn}</h3><span class="tag green">words per turn</span></div>
+      <div class="card"><p>Saved learning days</p><h3 style="font-size:34px">${state.activityDates.length}</h3><span class="tag green">Current streak: ${calculateStreak()}</span></div>
+    </div>
+    <div class="grid grid-2" style="margin-top:18px">
+      <div class="card"><h3>Most frequent detected issues</h3>${issues.length?`<table><tr><th>Detected pattern</th><th>Count</th></tr>${issues.slice(0,6).map(([i,n])=>`<tr><td>${i}</td><td>${n}</td></tr>`).join('')}</table>`:'<div class="empty-state">No saved corrections yet. Complete and save a conversation session.</div>'}</div>
+      <div class="card"><h3>Conversation modes used</h3>${Object.keys(modeCounts).length?Object.entries(modeCounts).map(([mode,n])=>`<div class="conversation-stat"><span>${mode}</span><strong>${n}</strong></div>`).join(''):'<div class="empty-state">No conversation sessions saved yet.</div>'}</div>
+    </div>
+    <div class="card" style="margin-top:18px"><h3>Writing comparison</h3>${writings.length?`<table><tr><th>Metric</th><th>First sample</th><th>Latest sample</th></tr><tr><td>Word count</td><td>${first.wordCount||countWords(first.text)}</td><td>${latest.wordCount||countWords(latest.text)}</td></tr><tr><td>Used linking expression</td><td>${first.usedLink?'Yes':'No'}</td><td>${latest.usedLink?'Yes':'No'}</td></tr><tr><td>Estimated rule-based issues</td><td>${first.estimatedIssues||0}</td><td>${latest.estimatedIssues||0}</td></tr></table>`:'<div class="empty-state">No writing sample yet. The app will compare your first and latest saved writing.</div>'}</div>`;
+}
+
+function detectBrowserFeatures(){
+  const speech=!!(window.SpeechRecognition||window.webkitSpeechRecognition);
+  const tts='speechSynthesis' in window;
+  const sb=document.getElementById('speechStatusBadge'),st=document.getElementById('speechStatusText');
+  const tb=document.getElementById('ttsStatusBadge'),tt=document.getElementById('ttsStatusText');
+  if(sb){sb.className='feature-status '+(speech?'working':'unavailable');sb.textContent=speech?'Supported':'Not supported';st.textContent=speech?'Browser speech recognition is available.':'Use a compatible Chrome or Edge build, or type your answer.'}
+  if(tb){tb.className='feature-status '+(tts?'working':'unavailable');tb.textContent=tts?'Supported':'Not supported';tt.textContent=tts?'Browser text-to-speech is available.':'Question audio is unavailable in this browser.'}
+}
+
+function runSelfTest(){
+  const results=[];
+  try{const k='fluentloop_test';localStorage.setItem(k,'ok');results.push(['Local storage',localStorage.getItem(k)==='ok','Can save and read data']);localStorage.removeItem(k)}catch(e){results.push(['Local storage',false,e.message])}
+  const required=['today','learn','coach','library','progress','status','libraryContent','chatInput'];
+  const missing=required.filter(id=>!document.getElementById(id));
+  results.push(['Required interface',missing.length===0,missing.length?'Missing: '+missing.join(', '):'All required elements found']);
+  try{JSON.stringify(state);results.push(['Data schema',state.schemaVersion===1,'Schema version '+state.schemaVersion])}catch(e){results.push(['Data schema',false,e.message])}
+  results.push(['Speech input',!!(window.SpeechRecognition||window.webkitSpeechRecognition),'Browser-dependent; not required for typed use']);
+  results.push(['Question audio','speechSynthesis' in window,'Browser-dependent']);
+  document.getElementById('selfTestResults').innerHTML=results.map(([name,ok,note])=>`<div class="test-result"><div><b>${name}</b><div class="muted">${note}</div></div><span class="feature-status ${ok?'working':'limited'}">${ok?'Pass':'Check'}</span></div>`).join('');
+}
+
+function renderStatusSummary(){
+  const el=document.getElementById('dataSummary'); if(!el)return;
+  const reviews=Object.values(state.words).reduce((n,w)=>n+(w.reviewCount||0),0);
+  el.textContent=`Saved locally: ${Object.keys(state.words).length} word records, ${reviews} reviews, ${state.writings.length} writings, ${state.conversations.length} conversations.`;
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`fluentloop-backup-${todayKey()}.json`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);toast('Backup exported');
+}
+function importData(event){
+  const file=event.target.files[0]; if(!file)return;
+  const reader=new FileReader();reader.onload=()=>{try{const incoming=JSON.parse(reader.result);if(incoming.schemaVersion!==1)throw new Error('Unsupported schema');state={...emptyState(),...incoming};localStorage.setItem(STATE_KEY,JSON.stringify(state));location.reload()}catch(e){toast('Import failed: '+e.message)}};reader.readAsText(file);
+}
+function updateResetButton(){document.getElementById('resetButton').disabled=document.getElementById('resetText').value!=='RESET'}
+function resetAllData(){if(document.getElementById('resetText').value!=='RESET')return;localStorage.removeItem(STATE_KEY);location.reload()}
+
 function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
 renderLookupList();
 renderLibrary('due');
+detectBrowserFeatures();
+renderStatusSummary();
+renderProgress();
 </script>
 </body>
 </html>
