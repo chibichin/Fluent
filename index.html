@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FluentLoop Local — Working Build v1.0</title>
+  <title>FluentLoop Local — Working Build v1.1</title>
   <style>
     :root{
       --bg:#f5f7fb;
@@ -78,6 +78,26 @@
     .btn.secondary{background:white;color:var(--text);border:1px solid var(--line)}
     .btn.ghost{background:rgba(255,255,255,.12);color:white;border:1px solid rgba(255,255,255,.22)}
     .btn.small{padding:8px 11px;font-size:13px}
+    .btn{transition:transform .12s ease,box-shadow .12s ease,background .12s ease,border-color .12s ease,color .12s ease;position:relative}
+    .btn:hover:not(:disabled){box-shadow:0 7px 18px rgba(62,70,150,.16);transform:translateY(-1px)}
+    .btn:active:not(:disabled){transform:translateY(0) scale(.975);box-shadow:none}
+    .btn:focus-visible{outline:3px solid rgba(92,99,242,.28);outline-offset:2px}
+    .btn:disabled{cursor:not-allowed;opacity:.48;box-shadow:none;transform:none}
+    .btn.is-active,.btn[aria-pressed="true"]{background:#4148d8;color:white;border-color:#4148d8;box-shadow:0 0 0 4px rgba(92,99,242,.16)}
+    .btn.secondary.is-active,.btn.secondary[aria-pressed="true"]{background:var(--primary-soft);color:#4047cf;border-color:var(--primary);box-shadow:0 0 0 4px rgba(92,99,242,.12)}
+    .btn.is-complete::after{content:"✓";margin-left:7px}
+    .hold-record-button{min-width:190px;user-select:none;-webkit-user-select:none;touch-action:none}
+    .hold-record-button.recording{background:var(--danger)!important;color:white!important;border-color:var(--danger)!important;box-shadow:0 0 0 5px rgba(204,75,86,.18)!important;animation:recordPulse 1.25s infinite}
+    @keyframes recordPulse{0%,100%{box-shadow:0 0 0 5px rgba(204,75,86,.16)}50%{box-shadow:0 0 0 10px rgba(204,75,86,.06)}}
+    .recording-preview{margin-top:12px;padding:15px;border:1px solid var(--line);border-radius:14px;background:#fafbfe}
+    .recording-preview audio,.history-entry audio,.turn-audio{width:100%;margin-top:9px}
+    .recording-meta{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+    .recording-dot{width:9px;height:9px;border-radius:50%;display:inline-block;background:var(--danger);margin-right:7px}
+    .history-entry{background:#f1f3f7;border:1px solid #e0e4eb;border-radius:13px;padding:13px;margin-top:10px;color:#485267}
+    .history-entry .history-original{color:#626d80;margin:8px 0}
+    .history-entry .history-corrected{color:#243149;margin:8px 0}
+    .history-meta{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#7a8495}
+    .button-legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--muted)}
     .metric{background:rgba(255,255,255,.1);padding:18px;border-radius:16px}
     .metric strong{display:block;font-size:27px}.metric span{color:#d8dcff;font-size:13px}
     .task-list{display:grid;gap:12px}
@@ -206,7 +226,7 @@
       <button data-section="status">🛠 Status</button>
     </div>
     <div class="footer">
-      Working Build v1.0<br>
+      Working Build v1.1<br>
       B1 → B2 · Psychology · Daily Life · Business
     </div>
   </aside>
@@ -306,7 +326,7 @@
 
     <section id="coach" class="section">
       <div class="topbar">
-        <div><h2>Conversation Coach</h2><p>完成一段想法後才糾正；修正、重新回答和目標單字都留在同一個流程裡。</p></div>
+        <div><h2>Conversation Coach</h2><p>按住錄音、放開停止；先播放自己的原始錄音，再確認 transcript 和送出。</p></div>
         <select id="coachMode" onchange="resetChat()" style="padding:10px;border:1px solid var(--line);border-radius:12px">
           <option>Topic conversation</option>
           <option>Daily-life roleplay</option>
@@ -328,21 +348,32 @@
           </div>
 
           <div class="coach-composer">
-            <textarea id="chatInput" placeholder="Write or dictate a complete paragraph. Press Ctrl/⌘ + Enter to send."
+            <button id="holdToSpeakButton" class="btn hold-record-button"
+              aria-pressed="false"
+              onpointerdown="beginHoldRecording(event)"
+              onpointerup="endHoldRecording(event)"
+              onpointercancel="cancelHoldRecording(event)"
+              onkeydown="handleRecordKeyDown(event)"
+              onkeyup="handleRecordKeyUp(event)"
+              oncontextmenu="return false">🎙 Hold to speak</button>
+
+            <div id="recordingPreview" class="recording-preview hidden">
+              <div class="recording-meta">
+                <div><span class="recording-dot"></span><b>Your original recording</b> · <span id="recordingDuration">00:00</span></div>
+                <button class="btn small secondary" onclick="discardCurrentRecording()">Record again</button>
+              </div>
+              <audio id="recordingPlayer" controls></audio>
+              <p id="transcriptionStatus" class="muted" style="margin-bottom:0">You can edit the transcript before sending.</p>
+            </div>
+
+            <textarea id="chatInput" placeholder="Transcript appears here when browser speech recognition is supported. You can also type it manually."
               onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){sendChat()}"></textarea>
             <div class="coach-actions">
-              <button class="btn" onclick="sendChat()">Send paragraph</button>
-              <button id="micButton" class="btn secondary" onclick="startSpeechInput()">🎙 Speak</button>
+              <button id="sendParagraphButton" class="btn" onclick="sendChat()">Send response</button>
               <button class="btn secondary" onclick="speakLastQuestion()">🔊 Hear question</button>
-              <button class="btn small secondary" onclick="showCoachHint()">Sentence starter</button>
+              <button class="btn small secondary" onclick="endConversationSession()">End & review session</button>
             </div>
-            <div id="coachHintPanel"></div>
-            <div id="sideQuestionPanel"></div>
-          </div>
-
-          <div class="toolbar">
-            <button class="btn small secondary" onclick="toggleSideQuestion()">Save a side question</button>
-            <button class="btn small secondary" onclick="endConversationSession()">End & review session</button>
+            <div class="button-legend"><span>紫色：主要操作</span><span>白色：次要操作</span><span>紅色：正在錄音</span><span>淺紫：目前已開啟</span></div>
           </div>
         </div>
 
@@ -355,7 +386,7 @@
               <span id="target-overwhelmed" class="target-chip">○ overwhelmed</span>
               <span id="target-get-started" class="target-chip">○ get started</span>
             </div>
-            <p class="muted" style="margin-bottom:0">自然使用的表達會變成綠色；明確提示後使用不會得到相同熟練度。</p>
+            <p class="muted" style="margin-bottom:0">自然使用的表達會變成綠色，並保存到該單字的 sentence history。</p>
           </div>
           <div class="vocab-item">
             <b>Grammar focus</b>
@@ -363,13 +394,18 @@
           </div>
           <div class="vocab-item">
             <b>Correction policy</b>
-            <p style="margin:6px 0 0">先回應內容，再顯示最多三個最重要的語言問題。</p>
+            <p style="margin:6px 0 0">完成一段後才糾正；最多顯示三個重要問題。</p>
           </div>
           <div class="vocab-item">
             <b>Current session</b>
             <div class="conversation-stat"><span>Paragraphs</span><strong id="conversationTurns">0</strong></div>
             <div class="conversation-stat"><span>Retries</span><strong id="conversationRetries">0</strong></div>
             <div class="conversation-stat"><span>Targets used</span><strong id="conversationTargets">0/3</strong></div>
+            <div class="conversation-stat"><span>Saved recordings</span><strong id="conversationRecordings">0</strong></div>
+          </div>
+          <div class="vocab-item">
+            <b>Recording privacy</b>
+            <p style="margin:6px 0 0">Audio is stored locally in this browser using IndexedDB. It is not uploaded.</p>
           </div>
         </div>
       </div>
@@ -412,7 +448,7 @@
     <section id="status" class="section">
       <div class="topbar">
         <div><h2>System Status & Data</h2><p>Use this page to distinguish a working feature, a browser limitation, and a feature that has not been connected yet.</p></div>
-        <span class="feature-status working">Working Build v1.0</span>
+        <span class="feature-status working">Working Build v1.1</span>
       </div>
 
       <div class="grid grid-2">
@@ -422,7 +458,9 @@
           <div class="settings-row"><b>Reading & word lookup</b><span>Included article and contextual word cards</span><span class="feature-status working">Working</span></div>
           <div class="settings-row"><b>Conversation feedback</b><span>Local grammar rules; not full semantic AI</span><span class="feature-status limited">Rule-based</span></div>
           <div class="settings-row"><b>Writing feedback</b><span>Local word-count and selected grammar rules</span><span class="feature-status limited">Rule-based</span></div>
-          <div class="settings-row"><b>Speech input</b><span id="speechStatusText">Checking browser support…</span><span id="speechStatusBadge" class="feature-status limited">Checking</span></div>
+          <div class="settings-row"><b>Microphone recording</b><span id="recordStatusText">Checking MediaRecorder support…</span><span id="recordStatusBadge" class="feature-status limited">Checking</span></div>
+          <div class="settings-row"><b>Local audio storage</b><span id="audioStoreStatusText">Checking IndexedDB support…</span><span id="audioStoreStatusBadge" class="feature-status limited">Checking</span></div>
+          <div class="settings-row"><b>Speech transcription</b><span id="speechStatusText">Checking browser support…</span><span id="speechStatusBadge" class="feature-status limited">Checking</span></div>
           <div class="settings-row"><b>Question audio</b><span id="ttsStatusText">Checking browser support…</span><span id="ttsStatusBadge" class="feature-status limited">Checking</span></div>
           <div class="settings-row"><b>Cloud AI understanding</b><span>Requires a secure backend; no API key is stored here</span><span class="feature-status unavailable">Not connected</span></div>
           <div class="settings-row"><b>Cloud sync/account</b><span>Data currently stays in this browser only</span><span class="feature-status unavailable">Not connected</span></div>
@@ -439,7 +477,7 @@
       <div class="grid grid-2" style="margin-top:18px">
         <div class="card">
           <h3>Export / import</h3>
-          <p>Export creates a JSON backup containing your words, reviews, writing and conversation records.</p>
+          <p>Export creates a JSON backup containing text data. Audio recordings remain in this browser and are not included in JSON v1.1.</p>
           <div class="toolbar">
             <button class="btn" onclick="exportData()">Export JSON</button>
             <label class="btn secondary" style="display:inline-flex;align-items:center">Import JSON<input id="importFile" type="file" accept="application/json" onchange="importData(event)" style="display:none"></label>
@@ -541,11 +579,14 @@ const vocabData = {
 };
 
 const STATE_KEY="fluentLoopWorkingStateV1";
+const AUDIO_DB_NAME="FluentLoopAudioDB";
+const AUDIO_DB_VERSION=1;
+const AUDIO_STORE="recordings";
 const todayKey=()=>new Date().toISOString().slice(0,10);
 const addDays=(dateString,days)=>{const d=new Date(dateString||Date.now());d.setDate(d.getDate()+days);return d.toISOString()};
 
 const emptyState=()=>({
-  schemaVersion:1,
+  schemaVersion:2,
   currentDay:todayKey(),
   lookups:[], completed:[], minutes:0, words:{}, customWords:{}, writings:[],
   conversations:[], laterQuestions:[], readingSessions:[], activityDates:[], eventLog:[]
@@ -554,7 +595,8 @@ const emptyState=()=>({
 function loadState(){
   try{
     const stored=JSON.parse(localStorage.getItem(STATE_KEY)||"null");
-    return stored && stored.schemaVersion===1 ? {...emptyState(),...stored} : emptyState();
+    if(stored && (stored.schemaVersion===1 || stored.schemaVersion===2)) return {...emptyState(),...stored,schemaVersion:2};
+    return emptyState();
   }catch(error){
     console.error("State load failed",error);
     return emptyState();
@@ -582,9 +624,84 @@ function applyStoredWords(){
     Object.assign(data,stored);
     if(!data.dueAt) data.dueAt=(data.status==='active'&&data.strength<65)?new Date().toISOString():addDays(new Date().toISOString(),3);
     if(data.reviewCount===undefined) data.reviewCount=0;
+    data.sentenceHistory=Array.isArray(data.sentenceHistory)?data.sentenceHistory:[];
+    if(data.lastSentence && !data.sentenceHistory.some(item=>item.original===data.lastSentence)){
+      data.sentenceHistory.unshift({id:createId('sentence'),original:data.lastSentence,corrected:data.lastSentence,date:data.lastReviewed||new Date().toISOString(),source:'Migrated practice',audioId:null});
+    }
   });
 }
 applyStoredWords();
+
+function createId(prefix='id'){
+  const core=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():`${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `${prefix}-${core}`;
+}
+
+function openAudioDB(){
+  return new Promise((resolve,reject)=>{
+    if(!('indexedDB' in window)){reject(new Error('IndexedDB unavailable'));return}
+    const request=indexedDB.open(AUDIO_DB_NAME,AUDIO_DB_VERSION);
+    request.onupgradeneeded=()=>{
+      const db=request.result;
+      if(!db.objectStoreNames.contains(AUDIO_STORE)) db.createObjectStore(AUDIO_STORE,{keyPath:'id'});
+    };
+    request.onsuccess=()=>resolve(request.result);
+    request.onerror=()=>reject(request.error||new Error('Could not open audio database'));
+  });
+}
+
+async function saveAudioBlob(blob,metadata={}){
+  const db=await openAudioDB();
+  const id=createId('audio');
+  await new Promise((resolve,reject)=>{
+    const tx=db.transaction(AUDIO_STORE,'readwrite');
+    tx.objectStore(AUDIO_STORE).put({id,blob,mimeType:blob.type||'audio/webm',createdAt:new Date().toISOString(),metadata});
+    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('Audio save aborted'));
+  });
+  db.close();
+  return id;
+}
+
+async function getAudioRecord(id){
+  if(!id)return null;
+  const db=await openAudioDB();
+  const record=await new Promise((resolve,reject)=>{
+    const req=db.transaction(AUDIO_STORE,'readonly').objectStore(AUDIO_STORE).get(id);
+    req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);
+  });
+  db.close();return record;
+}
+
+async function deleteAudioRecord(id){
+  if(!id)return;
+  const db=await openAudioDB();
+  await new Promise((resolve,reject)=>{const tx=db.transaction(AUDIO_STORE,'readwrite');tx.objectStore(AUDIO_STORE).delete(id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});
+  db.close();
+}
+
+async function countAudioRecords(){
+  const db=await openAudioDB();
+  const count=await new Promise((resolve,reject)=>{const req=db.transaction(AUDIO_STORE,'readonly').objectStore(AUDIO_STORE).count();req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)});
+  db.close();return count;
+}
+
+async function clearAudioDB(){
+  if(!('indexedDB' in window))return;
+  const db=await openAudioDB();
+  await new Promise((resolve,reject)=>{const tx=db.transaction(AUDIO_STORE,'readwrite');tx.objectStore(AUDIO_STORE).clear();tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});
+  db.close();
+}
+
+async function attachStoredAudio(elementId,audioId){
+  const el=document.getElementById(elementId);if(!el||!audioId)return;
+  try{
+    const record=await getAudioRecord(audioId);
+    if(!record){el.innerHTML='<span class="muted">Recording not found.</span>';return}
+    const url=URL.createObjectURL(record.blob);
+    el.innerHTML=`<audio controls src="${url}"></audio>`;
+    const audio=el.querySelector('audio');audio.addEventListener('ended',()=>{}, {once:true});
+  }catch(error){el.innerHTML='<span class="muted">Could not load recording.</span>'}
+}
 
 function logActivity(type,details={}){
   if(!state.activityDates.includes(todayKey())) state.activityDates.push(todayKey());
@@ -597,6 +714,7 @@ function persistWord(word){
   state.words[word]={
     status:d.status,strength:d.strength,dueAt:d.dueAt,reviewCount:d.reviewCount||0,
     lastReviewed:d.lastReviewed||null,lastSentence:d.lastSentence||null,
+    sentenceHistory:Array.isArray(d.sentenceHistory)?d.sentenceHistory:[],
     meaning:d.meaning,simple:d.simple,example:d.example,collocations:d.collocations
   };
   if(d.custom) state.customWords[word]={...d};
@@ -698,8 +816,8 @@ function showWord(word){
     <p class="example">${d.example}</p>
     <div>${d.collocations.map(x=>`<span class="tag">${x}</span>`).join('')}</div>
     <div class="toolbar">
-      <button class="btn small" onclick="setWordStatus('${word}','active')">Add to active learning</button>
-      <button class="btn small secondary" onclick="setWordStatus('${word}','passive')">Passive only</button>
+      <button class="btn small ${d.status==='active'?'is-active':''}" aria-pressed="${d.status==='active'}" onclick="setWordStatus('${word}','active')">Add to active learning</button>
+      <button class="btn small secondary ${d.status==='passive'?'is-active':''}" aria-pressed="${d.status==='passive'}" onclick="setWordStatus('${word}','passive')">Passive only</button>
     </div>`;
   renderLookupList();
 }
@@ -709,8 +827,7 @@ function renderLookupList(){
   el.innerHTML=state.lookups.map(w=>`<span class="tag amber">${w}</span>`).join('');
 }
 function setWordStatus(word,status){
-  vocabData[word].status=status; persistWord(word); logActivity('word_status',{word,status});
-  saveState();toast(status==='active'?"Added to active learning":"Kept for passive exposure");
+  vocabData[word].status=status;persistWord(word);saveState();showWord(word);toast(status==='active'?"Added to active learning":"Kept for passive exposure");
 }
 function simplifyArticle(){
   document.querySelector('.article').innerHTML=`
@@ -744,502 +861,231 @@ function finishReading(){
 let chatStep=0;
 let awaitingRetry=false;
 let lastQuestion="Some people think procrastination is mainly a time-management problem. Others think it is an emotional problem. What do you think?";
+let conversationSession={turns:[],retries:0,usedTargets:new Set(),corrections:[],recordingCount:0};
+let mediaRecorder=null;
+let recordingStream=null;
+let recordingChunks=[];
+let recordingStartedAt=0;
+let recordingTimer=null;
+let holdRequested=false;
 let speechRecognition=null;
-let conversationSession={turns:[],retries:0,usedTargets:new Set(),corrections:[],sideQuestions:[]};
+let currentRecording=null;
+let sessionObjectUrls=[];
 
 const conversationConfigs={
-  "Topic conversation":{
-    title:"Procrastination: time management or emotion?",
-    goal:"Explain your opinion, give one reason, and connect ideas naturally.",
-    first:"Some people think procrastination is mainly a time-management problem. Others think it is an emotional problem. What do you think?",
-    follow:[
-      "What usually makes it easier for you to get started?",
-      "Can you describe a recent situation when you felt overwhelmed?",
-      "What advice would you give to someone who keeps putting off an important task?"
-    ]
-  },
-  "Daily-life roleplay":{
-    title:"A friend keeps cancelling plans",
-    goal:"Express disappointment politely and suggest a solution.",
-    first:"I’m sorry, but I need to cancel our plans again. How would you respond?",
-    follow:[
-      "How could you explain your feelings without sounding aggressive?",
-      "What new plan would you suggest?",
-      "What would you do if the same problem happened again?"
-    ]
-  },
-  "Business conversation":{
-    title:"A project is falling behind schedule",
-    goal:"Explain a problem, take responsibility, and propose next steps.",
-    first:"Your manager asks why the project is late. How would you explain the situation?",
-    follow:[
-      "Which part of the project feels most overwhelming?",
-      "How would you break the remaining work into smaller steps?",
-      "What deadline would you propose, and why?"
-    ]
-  },
-  "Free conversation":{
-    title:"Free conversation",
-    goal:"Talk naturally; the coach will follow your topic and correct after each paragraph.",
-    first:"What has been on your mind recently?",
-    follow:[
-      "Why is that important to you?",
-      "Can you give me a specific example?",
-      "How has your opinion changed over time?"
-    ]
-  }
+  "Topic conversation":{title:"Procrastination: time management or emotion?",goal:"Explain your opinion, give one reason, and connect ideas naturally.",first:"Some people think procrastination is mainly a time-management problem. Others think it is an emotional problem. What do you think?",follow:["What usually makes it easier for you to get started?","Can you describe a recent situation when you felt overwhelmed?","What advice would you give to someone who keeps putting off an important task?"]},
+  "Daily-life roleplay":{title:"A friend keeps cancelling plans",goal:"Express disappointment politely and suggest a solution.",first:"I’m sorry, but I need to cancel our plans again. How would you respond?",follow:["How could you explain your feelings without sounding aggressive?","What new plan would you suggest?","What would you do if the same problem happened again?"]},
+  "Business conversation":{title:"A project is falling behind schedule",goal:"Explain a problem, take responsibility, and propose next steps.",first:"Your manager asks why the project is late. How would you explain the situation?",follow:["Which part of the project feels most overwhelming?","How would you break the remaining work into smaller steps?","What deadline would you propose, and why?"]},
+  "Free conversation":{title:"Free conversation",goal:"Talk naturally; the coach will follow your topic and correct after each paragraph.",first:"What has been on your mind recently?",follow:["Why is that important to you?","Can you give me a specific example?","How has your opinion changed over time?"]}
 };
 
-function currentConversationConfig(){
-  return conversationConfigs[document.getElementById('coachMode').value] || conversationConfigs["Topic conversation"];
+function currentConversationConfig(){return conversationConfigs[document.getElementById('coachMode').value]||conversationConfigs['Topic conversation']}
+function formatDuration(ms){const total=Math.max(0,Math.round(ms/1000));return `${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`}
+function chooseRecordingMimeType(){const types=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus'];return types.find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(t))||''}
+
+async function beginHoldRecording(event){
+  if(event){event.preventDefault();try{event.currentTarget.setPointerCapture&&event.currentTarget.setPointerCapture(event.pointerId)}catch(_){}}
+  if(mediaRecorder&&mediaRecorder.state==='recording')return;
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder)){toast('This browser cannot record audio.');return}
+  holdRequested=true;
+  const button=document.getElementById('holdToSpeakButton');
+  button.classList.add('is-active');button.setAttribute('aria-pressed','true');button.textContent='Requesting microphone…';
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    if(!holdRequested){stream.getTracks().forEach(t=>t.stop());resetRecordButton();return}
+    discardCurrentRecording(false);
+    recordingStream=stream;recordingChunks=[];
+    const mimeType=chooseRecordingMimeType();
+    mediaRecorder=new MediaRecorder(stream,mimeType?{mimeType}:undefined);
+    mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size)recordingChunks.push(e.data)};
+    mediaRecorder.onerror=e=>{console.error(e);toast('Recording error');stopRecordingResources()};
+    mediaRecorder.onstop=finishRecordedBlob;
+    mediaRecorder.start(200);
+    recordingStartedAt=Date.now();
+    button.classList.add('recording');button.textContent='● Recording 00:00';
+    recordingTimer=setInterval(()=>{button.textContent=`● Recording ${formatDuration(Date.now()-recordingStartedAt)}`},250);
+    startParallelTranscription();
+  }catch(error){
+    console.error(error);holdRequested=false;resetRecordButton();
+    toast(error&&error.name==='NotAllowedError'?'Microphone permission was denied.':'Could not start the microphone.');
+  }
 }
 
-function sendChat(){
-  const input=document.getElementById('chatInput');
-  const text=input.value.trim();
-  if(!text){toast("Write or say a complete thought first");return}
+function endHoldRecording(event){if(event)event.preventDefault();holdRequested=false;if(mediaRecorder&&mediaRecorder.state==='recording')mediaRecorder.stop();else resetRecordButton();stopParallelTranscription()}
+function cancelHoldRecording(event){endHoldRecording(event)}
+function handleRecordKeyDown(event){if((event.key===' '||event.key==='Enter')&&!event.repeat){event.preventDefault();beginHoldRecording(event)}}
+function handleRecordKeyUp(event){if(event.key===' '||event.key==='Enter'){event.preventDefault();endHoldRecording(event)}}
 
-  const isRetry=awaitingRetry;
-  appendBubble(text,'user',isRetry);
-  input.value='';
-  awaitingRetry=false;
-
-  const analysis=analyzeChatText(text,isRetry);
-  conversationSession.turns.push({
-    text,
-    retry:isRetry,
-    natural:analysis.natural,
-    corrections:analysis.corrections,
-    targets:analysis.targets
-  });
-  if(isRetry) conversationSession.retries++;
-  analysis.corrections.forEach(c=>conversationSession.corrections.push(c));
-  analysis.targets.forEach(t=>conversationSession.usedTargets.add(t));
-  updateConversationStats();
-  updateTargetChips();
-
-  setTimeout(()=>{
-    appendCoachFeedback(analysis,text);
-    const config=currentConversationConfig();
-    const next=config.follow[Math.min(chatStep,config.follow.length-1)];
-    lastQuestion=next;
-    appendBubble(next,'ai');
-    chatStep++;
-    completeTask('conversation');
-  },250);
+function finishRecordedBlob(){
+  const durationMs=Math.max(0,Date.now()-recordingStartedAt);
+  const mimeType=(mediaRecorder&&mediaRecorder.mimeType)||'audio/webm';
+  const blob=new Blob(recordingChunks,{type:mimeType});
+  stopRecordingResources();
+  if(!blob.size){toast('No audio was captured. Hold the button a little longer.');return}
+  const url=URL.createObjectURL(blob);
+  currentRecording={blob,url,durationMs,mimeType,audioId:null};
+  renderRecordingPreview();
+  toast('Recording ready to play');
 }
 
-function appendBubble(text,type,isRetry=false){
-  const chat=document.getElementById('chat');
-  const div=document.createElement('div');
-  div.className='bubble '+type;
-  div.innerHTML=escapeHtml(text)+(isRetry?'<span class="retry-badge">Retry</span>':'');
-  chat.appendChild(div);
-  chat.scrollTop=chat.scrollHeight;
+function stopRecordingResources(){
+  clearInterval(recordingTimer);recordingTimer=null;
+  if(recordingStream){recordingStream.getTracks().forEach(t=>t.stop());recordingStream=null}
+  mediaRecorder=null;recordingChunks=[];recordingStartedAt=0;holdRequested=false;resetRecordButton();
+}
+function resetRecordButton(){const b=document.getElementById('holdToSpeakButton');if(!b)return;b.classList.remove('recording','is-active');b.setAttribute('aria-pressed','false');b.textContent='🎙 Hold to speak'}
+function renderRecordingPreview(){
+  const preview=document.getElementById('recordingPreview'),player=document.getElementById('recordingPlayer');
+  if(!currentRecording){preview.classList.add('hidden');player.removeAttribute('src');return}
+  preview.classList.remove('hidden');player.src=currentRecording.url;document.getElementById('recordingDuration').textContent=formatDuration(currentRecording.durationMs);
+}
+function discardCurrentRecording(showToast=true){
+  if(currentRecording&&currentRecording.url){URL.revokeObjectURL(currentRecording.url)}
+  currentRecording=null;renderRecordingPreview();
+  if(showToast)toast('Ready to record again');
 }
 
-function appendCoachFeedback(analysis,originalText){
-  const chat=document.getElementById('chat');
-  const div=document.createElement('div');
-  div.className='feedback';
-  const correctionHtml=analysis.corrections.length
-    ? analysis.corrections.map(c=>`• ${c}`).join("<br>")
-    : "No major grammar issue detected. Add a specific example or a stronger linking expression.";
-  div.innerHTML=`
-    <h4>Coach response</h4>
-    <p>${analysis.contentResponse}</p>
-    <p><b>More natural version</b><br>${escapeHtml(analysis.natural)}</p>
-    <p><b>Important language points</b><br>${correctionHtml}</p>
-    ${analysis.targets.length?`<p><b>Target used:</b> ${analysis.targets.join(", ")}</p>`:""}
-    <div class="toolbar">
-      <button class="btn small secondary" onclick='prepareRetry(${JSON.stringify(originalText)})'>Say it again</button>
-      <button class="btn small secondary" onclick="focusComposer()">Continue conversation</button>
-    </div>`;
-  chat.appendChild(div);
-  chat.scrollTop=chat.scrollHeight;
+function startParallelTranscription(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return;
+  try{
+    speechRecognition=new SR();speechRecognition.lang='en-US';speechRecognition.interimResults=true;speechRecognition.continuous=true;
+    const input=document.getElementById('chatInput');let finalText=input.value?input.value.trim()+' ':'';
+    speechRecognition.onresult=event=>{let interim='';for(let i=event.resultIndex;i<event.results.length;i++){const text=event.results[i][0].transcript;if(event.results[i].isFinal)finalText+=text+' ';else interim+=text}input.value=(finalText+interim).trim()};
+    speechRecognition.onerror=e=>{if(e.error!=='aborted'&&e.error!=='no-speech')document.getElementById('transcriptionStatus').textContent='Recording is saved, but automatic transcription was unavailable.'};
+    speechRecognition.start();
+  }catch(_){speechRecognition=null}
+}
+function stopParallelTranscription(){if(speechRecognition){try{speechRecognition.stop()}catch(_){}speechRecognition=null}}
+
+async function sendChat(){
+  const input=document.getElementById('chatInput');const text=input.value.trim();
+  if(!text&&!currentRecording){toast('Record or type a response first');return}
+  const sendButton=document.getElementById('sendParagraphButton');sendButton.disabled=true;sendButton.textContent='Saving…';
+  const isRetry=awaitingRetry;awaitingRetry=false;
+  let audioId=null,audioUrl=null,durationMs=0;
+  try{
+    if(currentRecording){
+      audioId=await saveAudioBlob(currentRecording.blob,{source:'conversation',mode:document.getElementById('coachMode').value,durationMs:currentRecording.durationMs});
+      currentRecording.audioId=audioId;audioUrl=currentRecording.url;durationMs=currentRecording.durationMs;sessionObjectUrls.push(audioUrl);conversationSession.recordingCount++;
+    }
+    const analysis=analyzeChatText(text,isRetry);
+    const turn={id:createId('turn'),text,retry:isRetry,natural:analysis.natural,corrections:analysis.corrections,targets:analysis.targets,audioId,durationMs,at:new Date().toISOString()};
+    conversationSession.turns.push(turn);if(isRetry)conversationSession.retries++;
+    analysis.corrections.forEach(c=>conversationSession.corrections.push(c));analysis.targets.forEach(t=>conversationSession.usedTargets.add(t));
+    saveConversationSentenceHistory(turn);
+    appendBubble(text,'user',isRetry,audioUrl,durationMs);
+    input.value='';currentRecording=null;renderRecordingPreview();
+    updateConversationStats();updateTargetChips();
+    setTimeout(()=>{appendCoachFeedback(analysis,turn.id);const config=currentConversationConfig();const next=config.follow[Math.min(chatStep,config.follow.length-1)];lastQuestion=next;appendBubble(next,'ai');chatStep++;completeTask('conversation')},200);
+  }catch(error){console.error(error);toast('Could not save the recording. Check System Status.');}
+  finally{sendButton.disabled=false;sendButton.textContent='Send response'}
+}
+
+function appendBubble(text,type,isRetry=false,audioUrl=null,durationMs=0){
+  const chat=document.getElementById('chat');const div=document.createElement('div');div.className='bubble '+type;
+  const visible=text?escapeHtml(text):'<i>Audio response — transcript not available.</i>';
+  div.innerHTML=visible+(isRetry?'<span class="retry-badge">Retry</span>':'')+(audioUrl?`<audio class="turn-audio" controls src="${audioUrl}"></audio><small>${formatDuration(durationMs)}</small>`:'');
+  chat.appendChild(div);chat.scrollTop=chat.scrollHeight;
+}
+
+function appendCoachFeedback(analysis,turnId){
+  const chat=document.getElementById('chat');const div=document.createElement('div');div.className='feedback';
+  const correctionHtml=analysis.corrections.length?analysis.corrections.map(c=>`• ${c}`).join('<br>'):'No major grammar issue detected by the local rules.';
+  div.innerHTML=`<h4>Coach response</h4><p>${analysis.contentResponse}</p><p><b>More natural version</b><br>${escapeHtml(analysis.natural)}</p><p><b>Important language points</b><br>${correctionHtml}</p>${analysis.targets.length?`<p><b>Target used:</b> ${analysis.targets.join(', ')}</p>`:''}<div class="toolbar"><button class="btn small secondary" onclick="prepareRetry('${turnId}')">Say it again</button></div>`;
+  chat.appendChild(div);chat.scrollTop=chat.scrollHeight;
 }
 
 function analyzeChatText(text,isRetry=false){
-  let corrections=[];
-  let natural=text.trim();
-  const lower=text.toLowerCase();
-  const targets=[];
-
-  if(lower.includes("put off") || lower.includes("putting off")) targets.push("put off");
-  if(lower.includes("overwhelmed") || lower.includes("overwhelming")) targets.push("overwhelmed");
-  if(lower.includes("get started") || lower.includes("getting started")) targets.push("get started");
-
-  if(/\bneed (?!to\b)/i.test(natural)){
-    corrections.push('Use <b>need to + verb</b>.');
-    natural=natural.replace(/\bneed ([a-z]+)/i,"need to $1");
-  }
-  if(/\bwant (?!to\b)/i.test(natural)){
-    corrections.push('Use <b>want to + verb</b>.');
-    natural=natural.replace(/\bwant ([a-z]+)/i,"want to $1");
-  }
-  if(/\bit is emotional problem\b/i.test(natural)){
-    corrections.push('Use an article: <b>an emotional problem</b>.');
-    natural=natural.replace(/it is emotional problem/i,"it is an emotional problem");
-  }
-  if(/\bmany works\b/i.test(natural)){
-    corrections.push('Use <b>a lot of work</b>; “work” is usually uncountable here.');
-    natural=natural.replace(/\bmany works\b/i,"a lot of work");
-  }
-  if(/\bbecause\s+of\s+people\b/i.test(natural)){
-    corrections.push('Use <b>because + clause</b>, or <b>because of + noun phrase</b>.');
-  }
-  if(!/[.!?]$/.test(natural)) natural += ".";
-  corrections=corrections.slice(0,3);
-
-  let contentResponse="Your point is understandable.";
-  if(/emotional|anxious|stress|overwhel/i.test(lower)){
-    contentResponse="That is a strong point. People may understand the deadline clearly but still avoid the task because it creates stress or anxiety.";
-  }else if(/time|schedule|plan/i.test(lower)){
-    contentResponse="That makes sense. Poor planning can increase procrastination, especially when a large task has no clear first step.";
-  }else if(isRetry){
-    contentResponse="The second version is clearer and more controlled. Repeating the idea helps move the corrected pattern into active use.";
-  }
-
+  let corrections=[];let natural=(text||'').trim();const lower=natural.toLowerCase();const targets=[];
+  if(lower.includes('put off')||lower.includes('putting off'))targets.push('put off');
+  if(lower.includes('overwhelmed')||lower.includes('overwhelming'))targets.push('overwhelmed');
+  if(lower.includes('get started')||lower.includes('getting started'))targets.push('get started');
+  if(!natural){return {natural:'Transcript not available. Play the recording and add a transcript for grammar feedback.',corrections:['Add or edit the transcript to receive text-based feedback.'],targets,contentResponse:'Your recording was saved. Text analysis needs a transcript.'}}
+  if(/\bneed (?!to\b)/i.test(natural)){corrections.push('Use <b>need to + verb</b>.');natural=natural.replace(/\bneed ([a-z]+)/i,'need to $1')}
+  if(/\bwant (?!to\b)/i.test(natural)){corrections.push('Use <b>want to + verb</b>.');natural=natural.replace(/\bwant ([a-z]+)/i,'want to $1')}
+  if(/\bit is emotional problem\b/i.test(natural)){corrections.push('Use an article: <b>an emotional problem</b>.');natural=natural.replace(/it is emotional problem/i,'it is an emotional problem')}
+  if(/\bmany works\b/i.test(natural)){corrections.push('Use <b>a lot of work</b>; “work” is usually uncountable here.');natural=natural.replace(/\bmany works\b/i,'a lot of work')}
+  if(!/[.!?]$/.test(natural))natural+='.';corrections=corrections.slice(0,3);
+  let contentResponse='Your point is understandable.';
+  if(/emotional|anxious|stress|overwhel/i.test(lower))contentResponse='That is a strong point. People may understand a deadline clearly but still avoid a task because it creates stress or anxiety.';
+  else if(/time|schedule|plan/i.test(lower))contentResponse='That makes sense. Poor planning can increase procrastination, especially when a large task has no clear first step.';
+  else if(isRetry)contentResponse='The second attempt is useful because it lets you compare both the language and the original recording.';
   return {natural,corrections,targets,contentResponse};
 }
 
-function prepareRetry(originalText){
-  awaitingRetry=true;
-  const input=document.getElementById('chatInput');
-  input.value="";
-  input.placeholder="Express the same idea again in a complete paragraph. Try to use the correction without copying it.";
-  input.focus();
-  toast("Retry mode: say the same idea again");
-}
-
-function focusComposer(){
-  document.getElementById('chatInput').focus();
-}
-
-function showCoachHint(){
-  const panel=document.getElementById('coachHintPanel');
-  const config=currentConversationConfig();
-  const hints={
-    "Topic conversation":"I think procrastination is partly an emotional problem because...",
-    "Daily-life roleplay":"I understand that things happen, but I feel disappointed because...",
-    "Business conversation":"The project is behind schedule because..., and I suggest that we...",
-    "Free conversation":"Recently, I have been thinking about... because..."
-  };
-  panel.innerHTML=`<div class="practice-hint"><b>Optional starter:</b> ${hints[document.getElementById('coachMode').value]}</div>`;
-}
-
-function toggleSideQuestion(){
-  const panel=document.getElementById('sideQuestionPanel');
-  if(panel.innerHTML){
-    panel.innerHTML="";
-    return;
-  }
-  panel.innerHTML=`
-    <div class="inline-coach-panel">
-      <b>Save without leaving the conversation</b>
-      <textarea id="sideQuestionInput" style="min-height:70px" placeholder="Example: Why do we say ‘because of’ here?"></textarea>
-      <div class="toolbar">
-        <button class="btn small" onclick="saveSideQuestionInline()">Save for later</button>
-        <button class="btn small secondary" onclick="toggleSideQuestion()">Cancel</button>
-      </div>
-    </div>`;
-}
-
-function saveSideQuestionInline(){
-  const input=document.getElementById('sideQuestionInput');
-  const q=input.value.trim();
-  if(!q){toast("Write the question first");return}
-  state.laterQuestions.push({question:q,date:new Date().toLocaleDateString()});
-  conversationSession.sideQuestions.push(q);
-  saveState();
-  document.getElementById('sideQuestionPanel').innerHTML="";
-  toast("Saved to Later Exploration");
-}
-
-function updateTargetChips(){
-  const map={"put off":"put-off","overwhelmed":"overwhelmed","get started":"get-started"};
-  Object.entries(map).forEach(([target,id])=>{
-    const el=document.getElementById(`target-${id}`);
-    const used=conversationSession.usedTargets.has(target);
-    if(el){
-      el.classList.toggle('used',used);
-      el.textContent=(used?"✓ ":"○ ")+target;
-    }
+function saveConversationSentenceHistory(turn){
+  turn.targets.forEach(word=>{
+    const d=vocabData[word];if(!d)return;d.sentenceHistory=Array.isArray(d.sentenceHistory)?d.sentenceHistory:[];
+    d.sentenceHistory.unshift({id:createId('sentence'),original:turn.text||'(Audio response without transcript)',corrected:turn.natural,date:turn.at,source:'Conversation',audioId:turn.audioId});
+    if(d.sentenceHistory.length>50)d.sentenceHistory=d.sentenceHistory.slice(0,50);persistWord(word);
   });
-}
-
-function updateConversationStats(){
-  document.getElementById('conversationTurns').textContent=conversationSession.turns.filter(t=>!t.retry).length;
-  document.getElementById('conversationRetries').textContent=conversationSession.retries;
-  document.getElementById('conversationTargets').textContent=`${conversationSession.usedTargets.size}/3`;
-}
-
-function endConversationSession(){
-  const summary=document.getElementById('conversationSummary');
-  if(!conversationSession.turns.length){
-    toast("Complete at least one paragraph first");
-    return;
-  }
-  const commonCorrections=[...new Set(conversationSession.corrections)].slice(0,3);
-  const targets=[...conversationSession.usedTargets];
-  const record={
-    date:new Date().toLocaleString(),
-    mode:document.getElementById('coachMode').value,
-    turns:conversationSession.turns,
-    retries:conversationSession.retries,
-    targets
-  };
-  state.conversations.push(record);
-  logActivity('conversation_saved',{turns:record.turns.length,mode:record.mode});
   saveState();
-  summary.classList.remove('hidden');
-  summary.innerHTML=`
-    <h3>Conversation session summary</h3>
-    <div class="grid grid-3">
-      <div><p>Original paragraphs</p><h3>${conversationSession.turns.filter(t=>!t.retry).length}</h3></div>
-      <div><p>Retries</p><h3>${conversationSession.retries}</h3></div>
-      <div><p>Targets used</p><h3>${targets.length}/3</h3></div>
-    </div>
-    <p><b>Successfully used:</b> ${targets.length?targets.join(", "):"No target expression yet"}</p>
-    <p><b>Review next:</b> ${commonCorrections.length?commonCorrections.join("<br>"):"Use a wider range of linking expressions."}</p>
-    <div class="toolbar">
-      <button class="btn small" onclick="resetChat()">Start another conversation</button>
-      <button class="btn small secondary" onclick="switchSection('progress')">View progress</button>
-    </div>`;
+}
+
+function prepareRetry(turnId){awaitingRetry=true;discardCurrentRecording(false);document.getElementById('chatInput').value='';document.getElementById('chatInput').placeholder='Record the same idea again after reviewing the correction.';document.getElementById('holdToSpeakButton').focus();toast('Retry mode: hold to speak again')}
+
+function updateTargetChips(){const map={'put off':'put-off','overwhelmed':'overwhelmed','get started':'get-started'};Object.entries(map).forEach(([target,id])=>{const el=document.getElementById(`target-${id}`);const used=conversationSession.usedTargets.has(target);if(el){el.classList.toggle('used',used);el.textContent=(used?'✓ ':'○ ')+target}})}
+function updateConversationStats(){document.getElementById('conversationTurns').textContent=conversationSession.turns.filter(t=>!t.retry).length;document.getElementById('conversationRetries').textContent=conversationSession.retries;document.getElementById('conversationTargets').textContent=`${conversationSession.usedTargets.size}/3`;document.getElementById('conversationRecordings').textContent=conversationSession.recordingCount}
+
+async function endConversationSession(){
+  const summary=document.getElementById('conversationSummary');if(!conversationSession.turns.length){toast('Complete at least one response first');return}
+  const common=[...new Set(conversationSession.corrections)].slice(0,3);const targets=[...conversationSession.usedTargets];
+  const record={id:createId('conversation'),date:new Date().toISOString(),mode:document.getElementById('coachMode').value,turns:conversationSession.turns,retries:conversationSession.retries,targets};
+  state.conversations.push(record);logActivity('conversation_saved',{turns:record.turns.length,mode:record.mode,recordings:conversationSession.recordingCount});saveState();
+  summary.classList.remove('hidden');summary.innerHTML=`<h3>Conversation session summary</h3><div class="grid grid-3"><div><p>Original responses</p><h3>${conversationSession.turns.filter(t=>!t.retry).length}</h3></div><div><p>Retries</p><h3>${conversationSession.retries}</h3></div><div><p>Recordings</p><h3>${conversationSession.recordingCount}</h3></div></div><p><b>Successfully used:</b> ${targets.length?targets.join(', '):'No target expression yet'}</p><p><b>Review next:</b> ${common.length?common.join('<br>'):'Use a wider range of linking expressions.'}</p><h4>Your recordings</h4><div id="sessionRecordingList"></div><div class="toolbar"><button class="btn small" onclick="resetChat()">Start another conversation</button><button class="btn small secondary" onclick="switchSection('progress')">View progress</button></div>`;
+  const list=document.getElementById('sessionRecordingList');
+  record.turns.filter(t=>t.audioId).forEach((t,i)=>{const id=`summary-audio-${t.id}`;list.insertAdjacentHTML('beforeend',`<div class="history-entry"><div class="history-meta"><span>Attempt ${i+1}${t.retry?' · Retry':''}</span><span>${formatDuration(t.durationMs||0)}</span></div><div>${escapeHtml(t.text||'No transcript')}</div><div id="${id}"><span class="muted">Loading recording…</span></div></div>`);attachStoredAudio(id,t.audioId)});
   summary.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-function startSpeechInput(){
-  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SpeechRecognition){
-    toast("Speech input is not supported in this browser. Try Chrome or Edge.");
-    return;
-  }
-  if(speechRecognition){
-    speechRecognition.stop();
-    return;
-  }
-  speechRecognition=new SpeechRecognition();
-  speechRecognition.lang='en-US';
-  speechRecognition.interimResults=true;
-  speechRecognition.continuous=false;
-  const input=document.getElementById('chatInput');
-  const button=document.getElementById('micButton');
-  let finalText=input.value ? input.value+" " : "";
-  button.classList.add('mic-active');
-  button.textContent="■ Stop";
-
-  speechRecognition.onresult=(event)=>{
-    let interim="";
-    for(let i=event.resultIndex;i<event.results.length;i++){
-      const transcript=event.results[i][0].transcript;
-      if(event.results[i].isFinal) finalText+=transcript+" ";
-      else interim+=transcript;
-    }
-    input.value=(finalText+interim).trim();
-  };
-  speechRecognition.onerror=()=>toast("Speech recognition could not capture the audio.");
-  speechRecognition.onend=()=>{
-    speechRecognition=null;
-    button.classList.remove('mic-active');
-    button.textContent="🎙 Speak";
-    input.focus();
-  };
-  speechRecognition.start();
-}
-
-function speakLastQuestion(){
-  if(!('speechSynthesis' in window)){
-    toast("Text-to-speech is not supported in this browser.");
-    return;
-  }
-  window.speechSynthesis.cancel();
-  const utterance=new SpeechSynthesisUtterance(lastQuestion);
-  utterance.lang='en-US';
-  utterance.rate=0.9;
-  window.speechSynthesis.speak(utterance);
-}
+function speakLastQuestion(){if(!('speechSynthesis' in window)){toast('Text-to-speech is not supported in this browser.');return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(lastQuestion);u.lang='en-US';u.rate=.9;speechSynthesis.speak(u)}
 
 function resetChat(){
-  chatStep=0;
-  awaitingRetry=false;
-  conversationSession={turns:[],retries:0,usedTargets:new Set(),corrections:[],sideQuestions:[]};
-  const config=currentConversationConfig();
-  document.getElementById('coachTopicTitle').textContent=config.title;
-  document.getElementById('coachTopicGoal').textContent=config.goal;
-  lastQuestion=config.first;
-  document.getElementById('chat').innerHTML=`<div class="bubble ai">${escapeHtml(config.first)}</div>`;
-  document.getElementById('chatInput').value="";
-  document.getElementById('chatInput').placeholder="Write or dictate a complete paragraph. Press Ctrl/⌘ + Enter to send.";
-  document.getElementById('coachHintPanel').innerHTML="";
-  document.getElementById('sideQuestionPanel').innerHTML="";
-  document.getElementById('conversationSummary').classList.add('hidden');
-  updateConversationStats();
-  updateTargetChips();
+  if(mediaRecorder&&mediaRecorder.state==='recording')mediaRecorder.stop();stopParallelTranscription();discardCurrentRecording(false);sessionObjectUrls.forEach(url=>URL.revokeObjectURL(url));sessionObjectUrls=[];
+  chatStep=0;awaitingRetry=false;conversationSession={turns:[],retries:0,usedTargets:new Set(),corrections:[],recordingCount:0};const config=currentConversationConfig();
+  document.getElementById('coachTopicTitle').textContent=config.title;document.getElementById('coachTopicGoal').textContent=config.goal;lastQuestion=config.first;
+  document.getElementById('chat').innerHTML=`<div class="bubble ai">${escapeHtml(config.first)}</div>`;document.getElementById('chatInput').value='';document.getElementById('chatInput').placeholder='Transcript appears here when browser speech recognition is supported. You can also type it manually.';document.getElementById('conversationSummary').classList.add('hidden');updateConversationStats();updateTargetChips();resetRecordButton();
 }
 
 function showLibraryTab(type,btn){
-  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
-  renderLibrary(type);
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');renderLibrary(type);
 }
 function renderLibrary(type='due'){
   const content=document.getElementById('libraryContent');
   if(type==='writing'){
     if(!state.writings.length){content.innerHTML='<div class="card"><p>No writing saved yet. Complete today’s short writing to create your first comparison.</p></div>';return}
-    content.innerHTML=state.writings.map((w,i)=>`<div class="card"><h3>Writing ${i+1}</h3><p>${escapeHtml(w.text)}</p><span class="tag green">${w.date}</span></div>`).join('');
-    return;
+    content.innerHTML=state.writings.map((w,i)=>`<div class="card"><h3>Writing ${i+1}</h3><p>${escapeHtml(w.text)}</p><span class="tag green">${w.date}</span></div>`).join('');return;
   }
-  let entries=Object.entries(vocabData);
-  if(type==='active') entries=entries.filter(([k,v])=>v.status==='active');
-  if(type==='passive') entries=entries.filter(([k,v])=>v.status==='passive');
-  if(type==='due') entries=entries.filter(([k,v])=>v.status==='active'&&new Date(v.dueAt||0).getTime()<=Date.now());
-  content.innerHTML=entries.map(([word,d])=>{
-    const key=encodeURIComponent(word);
-    return `
-    <div class="vocab-item" data-vocab-card="${key}">
-      <div class="vocab-head"><div><h3 style="margin:0">${word}</h3><span class="muted">${d.meaning}</span></div>
-      <span class="status ${d.status}">${d.status==='active'?'Active learning':'Passive exposure'}</span></div>
-      <p>${d.example}</p>
-      <div>${d.collocations.map(x=>`<span class="tag">${x}</span>`).join('')}</div>
-      <div class="bar-row" style="grid-template-columns:90px 1fr 55px"><span>Strength</span><div class="progress"><span style="width:${d.strength}%"></span></div><strong>${d.strength}%</strong></div>
-      <p class="muted" style="margin:8px 0">Next review: ${new Date(d.dueAt).toLocaleDateString()}</p>
-      <div class="toolbar">
-        <button class="btn small" onclick="togglePractice('${key}','review')">Review now</button>
-        <button class="btn small secondary" onclick="togglePractice('${key}','sentence')">Make a sentence</button>
-      </div>
-      <div id="practice-${key}" class="practice-panel hidden"></div>
-    </div>`;
-  }).join('') || '<div class="card"><p>Nothing in this category yet.</p></div>';
+  let entries=Object.entries(vocabData);if(type==='active')entries=entries.filter(([_,v])=>v.status==='active');if(type==='passive')entries=entries.filter(([_,v])=>v.status==='passive');if(type==='due')entries=entries.filter(([_,v])=>v.status==='active'&&new Date(v.dueAt||0).getTime()<=Date.now());
+  content.innerHTML=entries.map(([word,d])=>{const key=encodeURIComponent(word);const historyCount=(d.sentenceHistory||[]).length;return `<div class="vocab-item" data-vocab-card="${key}"><div class="vocab-head"><div><h3 style="margin:0">${word}</h3><span class="muted">${d.meaning}</span></div><span class="status ${d.status}">${d.status==='active'?'Active learning':'Passive exposure'}</span></div><p>${d.example}</p><div>${d.collocations.map(x=>`<span class="tag">${x}</span>`).join('')}</div><div class="bar-row" style="grid-template-columns:90px 1fr 55px"><span>Strength</span><div class="progress"><span style="width:${d.strength}%"></span></div><strong>${d.strength}%</strong></div><p class="muted" style="margin:8px 0">Next review: ${new Date(d.dueAt).toLocaleDateString()} · ${historyCount} saved sentence${historyCount===1?'':'s'}</p><div class="toolbar"><button class="btn small secondary" data-practice="review" aria-pressed="false" onclick="togglePractice('${key}','review',this)">Review now</button><button class="btn small" data-practice="sentence" aria-pressed="false" onclick="togglePractice('${key}','sentence',this)">Make a sentence</button></div><div id="practice-${key}" class="practice-panel hidden"></div></div>`}).join('')||'<div class="card"><p>Nothing in this category yet.</p></div>';
 }
 
-function closeOtherPracticePanels(exceptId){
-  document.querySelectorAll('.practice-panel').forEach(panel=>{
-    if(panel.id!==exceptId) panel.classList.add('hidden');
-  });
-}
+function closeOtherPracticePanels(exceptId){document.querySelectorAll('.practice-panel').forEach(panel=>{if(panel.id!==exceptId){panel.classList.add('hidden');const card=panel.closest('.vocab-item');card&&card.querySelectorAll('[data-practice]').forEach(b=>{b.classList.remove('is-active');b.setAttribute('aria-pressed','false')})}})}
+function setPracticeButtonState(card,mode,active){card.querySelectorAll('[data-practice]').forEach(b=>{const on=active&&b.dataset.practice===mode;b.classList.toggle('is-active',on);b.setAttribute('aria-pressed',String(on))})}
 
-function togglePractice(encodedWord,mode){
-  const word=decodeURIComponent(encodedWord);
-  const panel=document.getElementById(`practice-${encodedWord}`);
-  if(!panel)return;
-  const sameMode=panel.dataset.mode===mode && !panel.classList.contains('hidden');
-  closeOtherPracticePanels(panel.id);
-  if(sameMode){panel.classList.add('hidden');return}
-  panel.dataset.mode=mode;
-  panel.classList.remove('hidden');
-  const d=vocabData[word];
-
-  if(mode==='review'){
-    panel.innerHTML=`
-      <h4>Recall the meaning in context</h4>
-      <p>用自己的話解釋 <b>${word}</b> 在這個句子中的意思：</p>
-      <p class="example">${d.example}</p>
-      <textarea id="review-input-${encodedWord}" placeholder="You may answer in English or Chinese..."></textarea>
-      <div class="toolbar">
-        <button class="btn small" onclick="checkInlineReview('${encodedWord}')">Check answer</button>
-        <button class="btn small secondary" onclick="showInlineHint('${encodedWord}','review')">I need a hint</button>
-        <button class="btn small secondary" onclick="togglePractice('${encodedWord}','review')">Close</button>
-      </div>
-      <div id="hint-${encodedWord}"></div>
-      <div id="feedback-${encodedWord}"></div>`;
-  }else{
-    panel.innerHTML=`
-      <h4>Use it in a true sentence</h4>
-      <p>請用 <b>${word}</b> 描述你自己的經驗或想法，不要複製原例句。</p>
-      <textarea id="sentence-input-${encodedWord}" placeholder="Write one complete English sentence..."></textarea>
-      <div class="toolbar">
-        <button class="btn small" onclick="checkInlineSentence('${encodedWord}')">Review my sentence</button>
-        <button class="btn small secondary" onclick="showInlineHint('${encodedWord}','sentence')">Sentence starter</button>
-        <button class="btn small secondary" onclick="togglePractice('${encodedWord}','sentence')">Close</button>
-      </div>
-      <div id="hint-${encodedWord}"></div>
-      <div id="feedback-${encodedWord}"></div>`;
-  }
+function togglePractice(encodedWord,mode,button){
+  const word=decodeURIComponent(encodedWord),panel=document.getElementById(`practice-${encodedWord}`);if(!panel)return;const card=panel.closest('.vocab-item');const same=panel.dataset.mode===mode&&!panel.classList.contains('hidden');closeOtherPracticePanels(panel.id);
+  if(same){panel.classList.add('hidden');setPracticeButtonState(card,mode,false);return}
+  panel.dataset.mode=mode;panel.classList.remove('hidden');setPracticeButtonState(card,mode,true);const d=vocabData[word];
+  if(mode==='review')renderSentenceHistory(word,encodedWord,panel);else panel.innerHTML=`<h4>Make a new sentence</h4><p>Use <b>${word}</b> in one true English sentence. This creates a new, permanent history entry.</p><textarea id="sentence-input-${encodedWord}" placeholder="Write one complete English sentence..."></textarea><div class="toolbar"><button class="btn small" onclick="checkInlineSentence('${encodedWord}')">Save & review sentence</button><button class="btn small secondary" onclick="togglePractice('${encodedWord}','sentence')">Close</button></div><div id="feedback-${encodedWord}"></div>`;
   panel.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
-function showInlineHint(encodedWord,mode){
-  const word=decodeURIComponent(encodedWord);
-  const d=vocabData[word];
-  const hint=document.getElementById(`hint-${encodedWord}`);
-  if(mode==='review'){
-    hint.innerHTML=`<div class="practice-hint"><b>Simple English hint:</b> ${d.simple}</div>`;
-  }else{
-    const starters={
-      "put off":"I sometimes put off...",
-      "overwhelming":"A situation feels overwhelming when...",
-      "criticism":"I find criticism helpful when...",
-      "temporary relief":"I feel temporary relief when...",
-      "break into smaller steps":"I can break this goal into smaller steps by...",
-      "get started":"It is easier for me to get started when..."
-    };
-    hint.innerHTML=`<div class="practice-hint"><b>Optional starter:</b> ${starters[word] || `I use “${word}” when...`}</div>`;
-  }
+function renderSentenceHistory(word,encodedWord,panel){
+  const history=(vocabData[word].sentenceHistory||[]).slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+  if(!history.length){panel.innerHTML=`<h4>Sentence history</h4><div class="history-entry">No saved sentence yet. Use <b>Make a sentence</b>, or use this expression in Conversation Coach.</div><div class="toolbar"><button class="btn small secondary" onclick="togglePractice('${encodedWord}','review')">Close</button></div>`;return}
+  panel.innerHTML=`<h4>Sentence history</h4><p class="muted">Past sentences are gray and read-only. Newest first.</p>${history.map(item=>{const audioContainer=item.audioId?`<div id="history-audio-${item.id}"><span class="muted">Loading recording…</span></div>`:'';return `<div class="history-entry"><div class="history-meta"><span>${escapeHtml(item.source||'Practice')}</span><span>${new Date(item.date).toLocaleString()}</span></div><div class="history-original"><b>Original</b><br>${escapeHtml(item.original||'')}</div><div class="history-corrected"><b>Corrected / natural version</b><br>${escapeHtml(item.corrected||item.original||'')}</div>${audioContainer}</div>`}).join('')}<div class="toolbar"><button class="btn small secondary" onclick="togglePractice('${encodedWord}','review')">Close</button></div>`;
+  history.filter(item=>item.audioId).forEach(item=>attachStoredAudio(`history-audio-${item.id}`,item.audioId));
 }
 
-function scheduleWordReview(word,quality){
-  const d=vocabData[word];
-  d.reviewCount=(d.reviewCount||0)+1;
-  const intervals=quality>=3?[3,7,14,30,60]:quality===2?[1,3,7,14,30]:[1,1,2,3,7];
-  const days=intervals[Math.min(d.reviewCount-1,intervals.length-1)];
-  d.dueAt=addDays(new Date().toISOString(),days);
-  d.lastReviewed=new Date().toISOString();
-  persistWord(word);
-  logActivity('word_review',{word,quality,nextDays:days});
-  return days;
-}
-
-function checkInlineReview(encodedWord){
-  const word=decodeURIComponent(encodedWord);
-  const d=vocabData[word];
-  const input=document.getElementById(`review-input-${encodedWord}`);
-  const feedback=document.getElementById(`feedback-${encodedWord}`);
-  const answer=input.value.trim();
-  if(!answer){toast("Write your explanation first");return}
-  const strong=answer.length>=12;
-  d.strength=Math.min(100,d.strength+(strong?8:4));
-  const days=scheduleWordReview(word,strong?2:1);
-  saveState();
-  feedback.innerHTML=`
-    <div class="practice-feedback">
-      <b>${strong?'Good contextual recall':'Meaning reviewed'}</b>
-      <p style="margin:7px 0"><b>Core meaning:</b> ${d.meaning}</p>
-      <p style="margin:7px 0"><b>Useful pattern:</b> ${d.collocations[0] || d.example}</p>
-      <p style="margin:7px 0"><b>Next scheduled review:</b> ${days} day${days>1?'s':''}</p>
-      <button class="btn small secondary" onclick="togglePractice('${encodedWord}','sentence')">Continue to make a sentence</button>
-    </div>`;
-}
+function scheduleWordReview(word,quality){const d=vocabData[word];d.reviewCount=(d.reviewCount||0)+1;const intervals=quality>=3?[3,7,14,30,60]:quality===2?[1,3,7,14,30]:[1,1,2,3,7];const days=intervals[Math.min(d.reviewCount-1,intervals.length-1)];d.dueAt=addDays(new Date().toISOString(),days);d.lastReviewed=new Date().toISOString();persistWord(word);logActivity('word_review',{word,quality,nextDays:days});return days}
 
 function checkInlineSentence(encodedWord){
-  const word=decodeURIComponent(encodedWord);
-  const d=vocabData[word];
-  const input=document.getElementById(`sentence-input-${encodedWord}`);
-  const feedback=document.getElementById(`feedback-${encodedWord}`);
-  const sentence=input.value.trim();
-  if(!sentence){toast("Write a sentence first");return}
-  const hasEnoughWords=sentence.split(/\s+/).length>=5;
-  const appears=sentence.toLowerCase().includes(word.toLowerCase().split(/\s+/)[0]);
-  let notes=[];
-  if(!hasEnoughWords) notes.push("Try adding a reason, example, or situation.");
-  if(!appears) notes.push(`Make sure the sentence clearly uses “${word}”.`);
-  if(/\bmany works\b/i.test(sentence)) notes.push("Use “a lot of work”; “work” is usually uncountable here.");
-  if(/\bneed (?!to\b)/i.test(sentence)) notes.push("Use “need to + verb.”");
-  if(/\bwant (?!to\b)/i.test(sentence)) notes.push("Use “want to + verb.”");
-  if(!notes.length) notes.push("The sentence is clear. Next, use the expression in conversation without a prompt.");
-  const success=hasEnoughWords&&appears;
-  d.strength=Math.min(100,d.strength+(success?12:5));
-  d.lastSentence=sentence;
-  const days=scheduleWordReview(word,success?3:1);
-  saveState();
-  feedback.innerHTML=`
-    <div class="practice-feedback">
-      <b>Sentence feedback</b>
-      <p style="margin:7px 0"><b>Your sentence:</b> ${escapeHtml(sentence)}</p>
-      <p style="margin:7px 0">${notes.join("<br>")}</p>
-      <p style="margin:7px 0"><b>Natural model:</b> ${d.example}</p>
-      <p style="margin:7px 0"><b>Next scheduled review:</b> ${days} day${days>1?'s':''}</p>
-      <button class="btn small secondary" onclick="document.getElementById('sentence-input-${encodedWord}').focus()">Try again</button>
-    </div>`;
+  const word=decodeURIComponent(encodedWord),d=vocabData[word],input=document.getElementById(`sentence-input-${encodedWord}`),feedback=document.getElementById(`feedback-${encodedWord}`),sentence=input.value.trim();if(!sentence){toast('Write a sentence first');return}
+  const analysis=analyzeChatText(sentence,false);const hasEnough=sentence.split(/\s+/).length>=5;const appears=sentence.toLowerCase().includes(word.toLowerCase().split(/\s+/)[0]);const success=hasEnough&&appears;
+  d.strength=Math.min(100,d.strength+(success?12:5));d.lastSentence=sentence;d.sentenceHistory=Array.isArray(d.sentenceHistory)?d.sentenceHistory:[];d.sentenceHistory.unshift({id:createId('sentence'),original:sentence,corrected:analysis.natural,date:new Date().toISOString(),source:'Sentence practice',audioId:null});if(d.sentenceHistory.length>50)d.sentenceHistory=d.sentenceHistory.slice(0,50);
+  const days=scheduleWordReview(word,success?3:1);persistWord(word);saveState();
+  feedback.innerHTML=`<div class="practice-feedback"><b>Sentence saved</b><p style="margin:7px 0"><b>Original:</b> ${escapeHtml(sentence)}</p><p style="margin:7px 0"><b>Corrected / natural:</b> ${escapeHtml(analysis.natural)}</p><p style="margin:7px 0">${analysis.corrections.length?analysis.corrections.join('<br>'):'No major issue detected by the local rules.'}</p><p style="margin:7px 0"><b>Next scheduled review:</b> ${days} day${days>1?'s':''}</p><button class="btn small secondary" onclick="togglePractice('${encodedWord}','review')">Open sentence history</button></div>`;
 }
 
 function toggleAddExpression(){
@@ -1307,30 +1153,27 @@ function renderProgress(){
 }
 
 function detectBrowserFeatures(){
-  const speech=!!(window.SpeechRecognition||window.webkitSpeechRecognition);
-  const tts='speechSynthesis' in window;
-  const sb=document.getElementById('speechStatusBadge'),st=document.getElementById('speechStatusText');
-  const tb=document.getElementById('ttsStatusBadge'),tt=document.getElementById('ttsStatusText');
-  if(sb){sb.className='feature-status '+(speech?'working':'unavailable');sb.textContent=speech?'Supported':'Not supported';st.textContent=speech?'Browser speech recognition is available.':'Use a compatible Chrome or Edge build, or type your answer.'}
-  if(tb){tb.className='feature-status '+(tts?'working':'unavailable');tb.textContent=tts?'Supported':'Not supported';tt.textContent=tts?'Browser text-to-speech is available.':'Question audio is unavailable in this browser.'}
+  const speech=!!(window.SpeechRecognition||window.webkitSpeechRecognition),tts='speechSynthesis' in window,recording=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder),idb='indexedDB' in window;
+  const set=(badgeId,textId,ok,yes,no)=>{const badge=document.getElementById(badgeId),text=document.getElementById(textId);if(!badge)return;badge.className='feature-status '+(ok?'working':'unavailable');badge.textContent=ok?'Supported':'Not supported';text.textContent=ok?yes:no};
+  set('recordStatusBadge','recordStatusText',recording,'Press-and-hold recording is available.','This browser cannot use MediaRecorder/getUserMedia.');
+  set('audioStoreStatusBadge','audioStoreStatusText',idb,'Audio blobs can be stored locally.','IndexedDB is unavailable; recordings cannot persist.');
+  set('speechStatusBadge','speechStatusText',speech,'Automatic transcript may be available.','Record/play still works; type the transcript manually.');
+  set('ttsStatusBadge','ttsStatusText',tts,'Browser text-to-speech is available.','Question audio is unavailable in this browser.');
 }
 
-function runSelfTest(){
+async function runSelfTest(){
   const results=[];
-  try{const k='fluentloop_test';localStorage.setItem(k,'ok');results.push(['Local storage',localStorage.getItem(k)==='ok','Can save and read data']);localStorage.removeItem(k)}catch(e){results.push(['Local storage',false,e.message])}
-  const required=['today','learn','coach','library','progress','status','libraryContent','chatInput'];
-  const missing=required.filter(id=>!document.getElementById(id));
-  results.push(['Required interface',missing.length===0,missing.length?'Missing: '+missing.join(', '):'All required elements found']);
-  try{JSON.stringify(state);results.push(['Data schema',state.schemaVersion===1,'Schema version '+state.schemaVersion])}catch(e){results.push(['Data schema',false,e.message])}
-  results.push(['Speech input',!!(window.SpeechRecognition||window.webkitSpeechRecognition),'Browser-dependent; not required for typed use']);
-  results.push(['Question audio','speechSynthesis' in window,'Browser-dependent']);
-  document.getElementById('selfTestResults').innerHTML=results.map(([name,ok,note])=>`<div class="test-result"><div><b>${name}</b><div class="muted">${note}</div></div><span class="feature-status ${ok?'working':'limited'}">${ok?'Pass':'Check'}</span></div>`).join('');
+  try{const k='fluentloop_test';localStorage.setItem(k,'ok');results.push(['Local storage',localStorage.getItem(k)==='ok','Can save and read text data']);localStorage.removeItem(k)}catch(e){results.push(['Local storage',false,e.message])}
+  const required=['today','learn','coach','library','progress','status','libraryContent','chatInput','holdToSpeakButton','recordingPreview'];const missing=required.filter(id=>!document.getElementById(id));results.push(['Required interface',missing.length===0,missing.length?'Missing: '+missing.join(', '):'All required elements found']);
+  try{JSON.stringify(state);results.push(['Data schema',state.schemaVersion===2,'Schema version '+state.schemaVersion])}catch(e){results.push(['Data schema',false,e.message])}
+  const media=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder);results.push(['Microphone API',media,'Permission is only requested when you hold the recording button']);
+  try{const testBlob=new Blob(['fluentloop-audio-test'],{type:'audio/webm'});const id=await saveAudioBlob(testBlob,{test:true});const loaded=await getAudioRecord(id);const ok=!!(loaded&&loaded.blob&&loaded.blob.size===testBlob.size);await deleteAudioRecord(id);results.push(['IndexedDB audio',ok,ok?'Write, read and delete passed':'Stored blob did not match'])}catch(e){results.push(['IndexedDB audio',false,e.message])}
+  results.push(['Speech transcription',!!(window.SpeechRecognition||window.webkitSpeechRecognition),'Optional and browser-dependent']);results.push(['Question audio','speechSynthesis' in window,'Browser-dependent']);
+  document.getElementById('selfTestResults').innerHTML=results.map(([name,ok,note])=>`<div class="test-result"><div><b>${name}</b><div class="muted">${note}</div></div><span class="feature-status ${ok?'working':'limited'}">${ok?'Pass':'Check'}</span></div>`).join('');renderStatusSummary();
 }
 
-function renderStatusSummary(){
-  const el=document.getElementById('dataSummary'); if(!el)return;
-  const reviews=Object.values(state.words).reduce((n,w)=>n+(w.reviewCount||0),0);
-  el.textContent=`Saved locally: ${Object.keys(state.words).length} word records, ${reviews} reviews, ${state.writings.length} writings, ${state.conversations.length} conversations.`;
+async function renderStatusSummary(){
+  const el=document.getElementById('dataSummary');if(!el)return;const reviews=Object.values(state.words).reduce((n,w)=>n+(w.reviewCount||0),0);let audio='unknown';try{audio=await countAudioRecords()}catch(_){}el.textContent=`Saved locally: ${Object.keys(state.words).length} word records, ${reviews} reviews, ${state.writings.length} writings, ${state.conversations.length} conversations, ${audio} audio recordings. JSON export does not include audio in v1.1.`;
 }
 function exportData(){
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
@@ -1338,10 +1181,10 @@ function exportData(){
 }
 function importData(event){
   const file=event.target.files[0]; if(!file)return;
-  const reader=new FileReader();reader.onload=()=>{try{const incoming=JSON.parse(reader.result);if(incoming.schemaVersion!==1)throw new Error('Unsupported schema');state={...emptyState(),...incoming};localStorage.setItem(STATE_KEY,JSON.stringify(state));location.reload()}catch(e){toast('Import failed: '+e.message)}};reader.readAsText(file);
+  const reader=new FileReader();reader.onload=()=>{try{const incoming=JSON.parse(reader.result);if(![1,2].includes(incoming.schemaVersion))throw new Error('Unsupported schema');state={...emptyState(),...incoming,schemaVersion:2};localStorage.setItem(STATE_KEY,JSON.stringify(state));location.reload()}catch(e){toast('Import failed: '+e.message)}};reader.readAsText(file);
 }
 function updateResetButton(){document.getElementById('resetButton').disabled=document.getElementById('resetText').value!=='RESET'}
-function resetAllData(){if(document.getElementById('resetText').value!=='RESET')return;localStorage.removeItem(STATE_KEY);location.reload()}
+async function resetAllData(){if(document.getElementById('resetText').value!=='RESET')return;localStorage.removeItem(STATE_KEY);try{await clearAudioDB()}catch(_){}location.reload()}
 
 function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
 renderLookupList();
@@ -1349,6 +1192,7 @@ renderLibrary('due');
 detectBrowserFeatures();
 renderStatusSummary();
 renderProgress();
+resetChat();
 </script>
 </body>
 </html>
